@@ -23,6 +23,8 @@ load_dotenv()
 
 # Initialize floating feature
 float_init()
+#get the api key from the streamlit cloud secrets
+API_KEY = st.secrets["OPENROUTER_API_KEY"]
 
 # # Initialize session states
 # if "show_chat" not in st.session_state:
@@ -228,7 +230,7 @@ def load_vectorstore():
 def setup_llm():
     return ChatOpenAI(
         openai_api_base="https://openrouter.ai/api/v1",
-        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        openai_api_key=API_KEY,
         model_name=LLM_MODEL,
         max_tokens=1024,
         temperature=0.7
