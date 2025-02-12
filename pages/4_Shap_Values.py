@@ -74,7 +74,6 @@ with right_col:
     )
 
 with left_col:
-    st.write("")  # Spacer
 
     # Filter data based on selected participants
     df_filtered = df[df["participant"].isin(selected_participants)]
@@ -87,8 +86,8 @@ with left_col:
     valid_features = filtered_features[filtered_features >= min_importance_threshold].index
     df_filtered = df_filtered[df_filtered["variable"].isin(valid_features)]
 
-    # Pivot for heatmap
-    heatmap_data = df_filtered.pivot(index="participant", columns="variable", values="importance").fillna(0)
+    # Pivot for heatmap (Swapped axes: participants → x, features → y)
+    heatmap_data = df_filtered.pivot(index="variable", columns="participant", values="importance").fillna(0)
 
     if heatmap_data.empty:
         st.warning("No features meet the selected importance threshold.")
@@ -107,36 +106,44 @@ with left_col:
     }
 
     # Assign colors based on NLP method (default to black if unknown)
-    feature_colors = [color_map.get(nlp_methods.get(var, "text feature"), "black") for var in heatmap_data.columns]
+    feature_colors = [color_map.get(nlp_methods.get(var, "text feature"), "black") for var in heatmap_data.index]
 
     # Create custom HTML tick labels to color them
     colored_labels = [
         f"<span style='color:{color}'>{label}</span>"
-        for label, color in zip(heatmap_data.columns, feature_colors)
+        for label, color in zip(heatmap_data.index, feature_colors)
     ]
 
     # Set color scale based on model
     if ml_model_short == "en":
         color_scale = [
-            [0.0, "purple"], [0.5, "green"], [0.9, "yellow"], [1.0, "red"]
+            [0.0, "rgb(251,243,240)"],  # Lightest
+            [0.25, "rgb(208,152,134)"],
+            [0.5, "rgb(180,97,77)"],
+            [0.75, "rgb(155,50,28)"],
+            [1.0, "rgb(136,20,3)"]  # Darkest
         ]
         vmax_value = 0.040
-    else:  # RF model color scale (Blue → Orange → Red)
+    else:  # RF model color scale (Shades of purple)
         color_scale = [
-            [0.0, "blue"], [0.5, "orange"], [0.9, "red"], [1.0, "red"]
+            [0.0, "rgb(251,243,240)"],  # Lightest
+            [0.25, "rgb(213,201,232)"],
+            [0.5, "rgb(163,138,202)"],
+            [0.75, "rgb(153,125,196)"],
+            [1.0, "rgb(94,67,170)"]  # Darkest
         ]
         vmax_value = 0.10
 
-    # Adjust heatmap height dynamically based on number of participants
-    num_participants = len(selected_participants)
-    heatmap_height = min(max(600, num_participants * 40), 1500)  # Min 600px, Max 1500px
+    # Adjust heatmap height dynamically based on number of features
+    num_features = len(valid_features)
+    heatmap_height = min(max(600, num_features * 40), 800)  # Min 600px, Max 1500px
 
     # Create heatmap using Plotly
     fig = go.Figure(
         data=go.Heatmap(
             z=heatmap_data.values,
-            x=heatmap_data.columns,  # Use original feature names
-            y=heatmap_data.index,
+            x=heatmap_data.columns,  # Participants on X-axis
+            y=heatmap_data.index,  # Features on Y-axis
             colorscale=color_scale,
             colorbar=dict(title="SHAP Value"),
             zmin=0,
@@ -146,15 +153,18 @@ with left_col:
 
     # Customize layout for better readability
     fig.update_layout(
-        
         xaxis=dict(
-            title="Feature", 
+            title="Participant", 
             tickangle=90, 
             tickmode="array", 
-            tickvals=list(range(len(heatmap_data.columns))),
+            tickvals=list(range(len(heatmap_data.columns)))
+        ),
+        yaxis=dict(
+            title="Feature", 
+            tickmode="array", 
+            tickvals=list(range(len(heatmap_data.index))),
             ticktext=colored_labels  # Use colored HTML labels
         ),
-        yaxis=dict(title="Participant", tickfont=dict(size=10)),
         autosize=False,
         height=heatmap_height  # Dynamically adjusted height
     )
@@ -179,7 +189,6 @@ with left_col:
     </div>
     """
     st.write(legend_html, unsafe_allow_html=True)
-
 
 # Add the chatbot to the page
 app_with_chatbot.show_chatbot_ui()
