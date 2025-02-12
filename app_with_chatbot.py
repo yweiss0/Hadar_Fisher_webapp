@@ -223,6 +223,7 @@ def load_vectorstore():
     return FAISS.load_local(
         INDEX_NAME,
         embeddings,
+        openai_api_key=OPENAI_API_KEY,
         allow_dangerous_deserialization=True
     )
 
