@@ -45,7 +45,7 @@ with left_col:
         unique_emotions = df_gpt_all["emotion_affect"].unique().tolist()
         outcome = st.selectbox("Outcome", unique_emotions)
 
-        # Filter Data
+        # Dynamically filter based on user selection
         if "nom_idio" in df_gpt_all.columns:
             df_gpt_filtered = df_gpt_all[
                 (df_gpt_all["emotion_affect"] == outcome) & (df_gpt_all["nom_idio"] == nom_idio_value)
@@ -60,17 +60,18 @@ with left_col:
         st.success("Loaded data: **modelfit_gpt_all.csv** (GPT mode)")
 
     else:
-        outcome = st.selectbox("Outcome", ["angry", "nervous", "sad", "na"])
-        nlp_approach = "comb" if nlp_approach == "COMBINED" else nlp_approach
+        outcome = st.selectbox("Outcome", ["Angry", "Nervous", "Sad", "Negative Affect"]).lower()
+        outcome = "na" if outcome == "negative affect" else outcome
+        nlp_approach_value = "comb" if nlp_approach == "COMBINED" else nlp_approach.lower()
 
         # File names for EN and RF models
-        file_name_en = f"{nlp_approach}_en_{outcome}_{nom_idio_value}.csv"
-        file_name_rf = f"{nlp_approach}_rf_{outcome}_{nom_idio_value}.csv"
+        file_name_en = f"{nlp_approach_value}_en_{outcome}_{nom_idio_value}.csv"
+        file_name_rf = f"{nlp_approach_value}_rf_{outcome}_{nom_idio_value}.csv"
 
         file_path_en = os.path.join(DATA_DIR, file_name_en)
         file_path_rf = os.path.join(DATA_DIR, file_name_rf)
 
-        # Load CSVs
+        # Load CSVs dynamically based on selection
         df_en, df_rf = None, None
 
         if os.path.exists(file_path_en):
@@ -87,14 +88,17 @@ with left_col:
         else:
             st.error(f"File not found: {file_name_rf}")
 
-        # Stop if either is missing
+        # Stop if either model is missing
         if df_en is None or df_rf is None:
             st.stop()
 
-        # Combine Data
+        # Dynamically filter data to ensure changes take effect
         df_en["ml model"] = "Elastic Net (en)"
         df_rf["ml model"] = "Random Forest (rf)"
-        df_combined = pd.concat([df_en, df_rf])
+        df_combined = pd.concat([df_en, df_rf], ignore_index=True)
+
+        # Ensure filtering applies dynamically
+        df_combined = df_combined[df_combined["r2"].notna()]
 
 # Display Graph in Right Column
 with right_col:
@@ -149,7 +153,7 @@ with right_col:
         P_below_0_05 = df_gpt_filtered[df_gpt_filtered["p_value"] < 0.05].shape[0]
         summary_data.append(["GPT", M_SD, N, Range, P_below_0_05])
     else:
-        for model, df_temp in zip(["en", "rf"], [df_en, df_rf]):
+        for model, df_temp in zip(["Elastic Net (en)", "Random Forest (rf)"], [df_en, df_rf]):
             M_SD = f"{df_temp['r2'].mean():.2f} ({df_temp['r2'].std():.2f})"
             N = df_temp.shape[0]
             Range = f"({df_temp['r2'].min():.2f}, {df_temp['r2'].max():.2f})"
