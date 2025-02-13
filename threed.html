@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vanta.js Birds Effect</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Make the background fullscreen and fixed */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Source Sans Pro', sans-serif; /* Apply the font */
+        }
+
+        #vanta-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1; /* Keep it behind other content */
+        }
+
+        .content {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: black; /* Adjust text color as needed */
+            text-align: center;
+            z-index: 1; /* Ensure it is above the background */
+            width: 80%; /* Spread the text more widely */
+        }
+
+        .content h1 {
+            font-size: 3em; /* Increase font size for the heading */
+        }
+
+        .content p {
+            font-size: 1.5em; /* Increase font size for the paragraph */
+        }
+    </style>
+</head>
+<body>
+    <div id="vanta-bg"></div>
+    <div class="content">
+        <h1>📊 Can Natural Language Processing Track Negative Emotions in the Daily Lives of Adolescents?</h1>
+        <p>Welcome to the Machine Learning Model Analysis Dashboard. Navigate using the sidebar to explore model performance and predictions.</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanta/0.5.24/vanta.birds.min.js"></script>
+    <script>
+        VANTA.BIRDS({
+            el: "#vanta-bg",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            scale: 1.00,
+            scaleMobile: 1.00,
+            color1: 0xff9900,  // Optional: Customize colors
+            color2: 0x5500ff,
+            backgroundColor: 0xffffff
+        });
+    </script>
+</body>
+</html>
