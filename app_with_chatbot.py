@@ -294,10 +294,10 @@ def show_chatbot_ui():
 
     chat_container = st.container()
     chat_css = float_css_helper(
-        width="400px",
+        width="min(75vw, 400px)",
         right="2rem",
         bottom=chat_bottom,
-        css=f"padding: 1rem; {chat_transition}; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.2);",
+        css=f"padding: 1rem; {chat_transition}; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.2); max-height: 60vh; overflow-y: auto;",
         shadow=12
     )
     chat_container.float(chat_css)
