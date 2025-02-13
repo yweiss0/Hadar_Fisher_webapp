@@ -93,11 +93,17 @@ with left_col:
     # Sort features by NLP method first, then by importance
     df_sorted = df_filtered.sort_values(by=["nlp_order", "importance"], ascending=[True, False])
 
+    # **Ensure Equal Spacing for Features**
+    feature_list = df_sorted["variable"].unique().tolist()
+    y_positions = list(range(len(feature_list)))  # Evenly spaced Y values
+    feature_y_map = {feature: y for feature, y in zip(feature_list, y_positions)}
+    df_sorted["y_position"] = df_sorted["variable"].map(feature_y_map)  # Assign equal spacing
+
     # **Dynamically adjust graph height**
-    num_features = df_sorted.shape[0]  # Number of features after filtering
-    height_per_feature = 30  # Pixels per feature (adjustable)
-    min_height = 150
-    max_height = 750
+    num_features = len(feature_list)  # Number of features after filtering
+    height_per_feature = 50  # Pixels per feature (adjustable)
+    min_height = 350
+    max_height = 1800
     dynamic_height = min(max_height, max(min_height, num_features * height_per_feature))
 
     # Define NLP method colors
@@ -105,6 +111,7 @@ with left_col:
         "liwc": "red",
         "gpt": "blue",
         "vader": "green",
+        "lda": "purple",
         "text feature": "black"
     }
 
@@ -118,11 +125,12 @@ with left_col:
     for nlp_method, color in color_map.items():
         df_subset = df_sorted[df_sorted["nlp"] == nlp_method]
         for _, row in df_subset.iterrows():
+            line_width = 3 if row["nlp"] != "text feature" else 2  # Ensure black lines are always visible
             fig.add_trace(go.Scatter(
                 x=[0, row["importance"]],  # Line from 0 to importance value
-                y=[row["variable"], row["variable"]],  # Keep the same y-value
+                y=[row["y_position"], row["y_position"]],  # Keep the same y-value
                 mode="lines",
-                line=dict(color=color, width=3),
+                line=dict(color=color, width=line_width),
                 hoverinfo="text",
                 hovertext=f"Feature: {row['variable']}<br>Importance: {row['importance']:.4f}",
                 showlegend=False
@@ -141,7 +149,7 @@ with left_col:
     # Add scatter plot dots for feature importance values (with tooltip)
     fig.add_trace(go.Scatter(
         x=df_sorted["importance"],
-        y=df_sorted["variable"],
+        y=df_sorted["y_position"],
         mode="markers",
         marker=dict(
             size=17,
@@ -153,25 +161,25 @@ with left_col:
         showlegend=False  # Ensure dots appear in legend but not in legend box
     ))
 
-    # **Fix alignment: Adjust y-axis and remove unnecessary spacing**
+    # **Fix alignment & adjust border size**
     fig.update_layout(
-        margin=dict(l=10, r=20, t=20, b=10),  # Reduce extra spacing
+        margin=dict(l=10, r=20, t=20, b=10),
         xaxis_title="SHAP Value",
         yaxis_title="Features",
         template="plotly_white",
-        height=dynamic_height,  # **Dynamic height based on features**
-        legend=dict(title="NLP Methods", orientation="v", x=1.05, y=0.96),  # Place legend vertically
+        height=dynamic_height,
+        legend=dict(title="NLP Methods", orientation="v", x=1.05, y=0.96),
         plot_bgcolor="white",
         paper_bgcolor="white",
+        yaxis=dict(tickmode="array", tickvals=y_positions, ticktext=feature_list),
         shapes=[dict(
             type="rect",
             xref="paper", yref="paper",
             x0=-0.01, y0=-0.0001, x1=1.01, y1=0.96, # **Cover the entire plot area**
-            line=dict(color="black", width=0.1)  # **Thin black border around the graph**
+            line=dict(color="black", width=0.8)
         )]
     )
 
-    # **Show the plot at the top**
     st.plotly_chart(fig, use_container_width=True)
 
     # Add the chatbot to the page
