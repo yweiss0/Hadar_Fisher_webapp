@@ -244,15 +244,18 @@ def chatbot_response_generator(user_query):
     retriever = vectorstore.as_retriever()
     llm = setup_llm()
     prompt = ChatPromptTemplate.from_template(
-        """Answer the following question based only on the provided context:
-        
-        <context>
-        {context}
-        </context>
-        
-        Question: {input}.
+        """You are an AI assistant that answers questions **strictly** based on the provided context. Follow these rules:
+            1. If the answer is in the context, respond clearly and concisely (≤50 words) using **only** that information.
+            2. If the answer is **not** in the context, say: *"I can't help with that."*
+            3. If the question is **unrelated** to the context, say: *"I can't help with that."*
+            4. Do **not** use external knowledge.
 
-        the context provided earlier seems to be related to a statistical analysis or research study topic.if It does not provide any direct relevance to the question, please ignore it and answer sorry i can't help with that."""
+            <context>
+            {context}
+            </context>
+            
+            Question: {input}.
+        """
     )
     document_chain = create_stuff_documents_chain(llm, prompt)
     retrieval_chain = create_retrieval_chain(retriever, document_chain)
