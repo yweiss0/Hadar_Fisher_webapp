@@ -25,6 +25,7 @@ load_dotenv()
 float_init()
 #get the api key from the streamlit cloud secrets
 API_KEY = st.secrets["OPENROUTER_API_KEY"]
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 # # Initialize session states
 # if "show_chat" not in st.session_state:
