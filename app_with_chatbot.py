@@ -220,7 +220,7 @@ def create_message_div(msg: Message) -> str:
 
 # Function to load FAISS vector store
 def load_vectorstore():
-    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
+    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL, openai_api_key=OPENAI_API_KEY)
     return FAISS.load_local(
         INDEX_NAME,
         embeddings,
