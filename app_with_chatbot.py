@@ -286,7 +286,7 @@ def show_chatbot_ui():
         width="2.5rem",
         height="2.5rem",
         right="6rem",
-        bottom="2rem",
+        bottom="4rem",
         transition=0.1
     )
     button_container.float(button_css)
