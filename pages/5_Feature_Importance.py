@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import plotly.graph_objects as go
+import app_with_chatbot
 
 # File Path
 DATA_DIR = "data/files_tab_4/"
@@ -53,8 +54,8 @@ with right_col:
     # Ensure numeric conversion
     df["importance"] = pd.to_numeric(df["importance"], errors="coerce")
 
-    # **Fix for black dot issue**
-    df.dropna(subset=["importance"], inplace=True)  # Remove NaN importance values
+    # Remove NaN importance values
+    df.dropna(subset=["importance"], inplace=True)
 
     # Get unique participants (keep original case for selection)
     participants = sorted(df["participant"].unique().tolist())
@@ -67,7 +68,7 @@ with right_col:
         "Minimum Feature Importance Threshold",
         min_value=0.0, 
         max_value=0.01, 
-        value=0.0015,  # Default at 0.0015
+        value=0.0030,  # Default at 0.0030
         step=0.0001,
         format="%.4f"
     )
@@ -92,6 +93,13 @@ with left_col:
     # Sort features by NLP method first, then by importance
     df_sorted = df_filtered.sort_values(by=["nlp_order", "importance"], ascending=[True, False])
 
+    # **Dynamically adjust graph height**
+    num_features = df_sorted.shape[0]  # Number of features after filtering
+    height_per_feature = 30  # Pixels per feature (adjustable)
+    min_height = 150
+    max_height = 750
+    dynamic_height = min(max_height, max(min_height, num_features * height_per_feature))
+
     # Define NLP method colors
     color_map = {
         "liwc": "red",
@@ -106,7 +114,7 @@ with left_col:
     # Create SHAP summary scatter plot
     fig = go.Figure()
 
-    # Add vertical lines from 0 to the importance value
+    # Add vertical lines from 0 to the importance value (with tooltip)
     for nlp_method, color in color_map.items():
         df_subset = df_sorted[df_sorted["nlp"] == nlp_method]
         for _, row in df_subset.iterrows():
@@ -114,7 +122,9 @@ with left_col:
                 x=[0, row["importance"]],  # Line from 0 to importance value
                 y=[row["variable"], row["variable"]],  # Keep the same y-value
                 mode="lines",
-                line=dict(color=color, width=1),
+                line=dict(color=color, width=3),
+                hoverinfo="text",
+                hovertext=f"Feature: {row['variable']}<br>Importance: {row['importance']:.4f}",
                 showlegend=False
             ))
 
@@ -128,17 +138,19 @@ with left_col:
             name=nlp_method.upper()  # Add NLP method name to legend
         ))
 
-    # Add scatter plot dots for feature importance values
+    # Add scatter plot dots for feature importance values (with tooltip)
     fig.add_trace(go.Scatter(
         x=df_sorted["importance"],
         y=df_sorted["variable"],
         mode="markers",
         marker=dict(
-            size=10,
+            size=17,
             color=df_sorted["color"],  # Coloring by NLP method
         ),
+        hoverinfo="text",
+        hovertext=[f"Feature: {feat}<br>Importance: {imp:.4f}" for feat, imp in zip(df_sorted["variable"], df_sorted["importance"])],
         name="Feature Importance",
-        showlegend=False  # Ensure dots appear in legend
+        showlegend=False  # Ensure dots appear in legend but not in legend box
     ))
 
     # **Fix alignment: Adjust y-axis and remove unnecessary spacing**
@@ -147,14 +159,20 @@ with left_col:
         xaxis_title="SHAP Value",
         yaxis_title="Features",
         template="plotly_white",
-        height=750,  # Increased height to align better
-        legend=dict(title="NLP Methods", orientation="v", x=1.05, y=0.96, ),  # Place legend vertically graph
-        yaxis=dict(
-            tickmode="array",
-            tickvals=df_sorted["variable"],
-            ticktext=[f"<span style='color:{color}'>{label}</span>" for label, color in zip(df_sorted["variable"], df_sorted["color"])],
-        )
+        height=dynamic_height,  # **Dynamic height based on features**
+        legend=dict(title="NLP Methods", orientation="v", x=1.05, y=0.96),  # Place legend vertically
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        shapes=[dict(
+            type="rect",
+            xref="paper", yref="paper",
+            x0=-0.01, y0=-0.0001, x1=1.01, y1=0.96, # **Cover the entire plot area**
+            line=dict(color="black", width=0.1)  # **Thin black border around the graph**
+        )]
     )
 
     # **Show the plot at the top**
     st.plotly_chart(fig, use_container_width=True)
+
+    # Add the chatbot to the page
+    app_with_chatbot.show_chatbot_ui()
