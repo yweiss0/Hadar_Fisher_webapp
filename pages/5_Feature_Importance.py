@@ -6,6 +6,7 @@ import app_with_chatbot
 
 # File Path
 DATA_DIR = "data/files_tab_4/"
+METRICS_DIR = "data/files_tab_1_2/"  # Directory for R² and RMSE values
 
 st.set_page_config(page_title="Feature Importance Visualization", layout="wide")
 
@@ -62,6 +63,35 @@ with right_col:
 
     # Dropdown for selecting a single participant
     selected_participant = st.selectbox("Select a Participant", participants)
+
+    # Load performance metrics file
+    fixed_outcome = "angry" if outcome == "anger" else outcome
+    metrics_file_name = f"comb_{ml_model_short}_{fixed_outcome}_idiog.csv"
+    metrics_file_path = os.path.join(METRICS_DIR, metrics_file_name)
+
+    r2_value, rmse_value = None, None
+
+    if os.path.exists(metrics_file_path):
+        df_metrics = pd.read_csv(metrics_file_path, encoding="ISO-8859-1")
+        
+        # Convert all column names to lowercase
+        df_metrics.columns = df_metrics.columns.str.lower()
+
+        # Ensure it has required columns
+        required_metrics_columns = ["participant", "r2", "rmse"]
+        missing_metrics_columns = [col for col in required_metrics_columns if col not in df_metrics.columns]
+
+        if not missing_metrics_columns:
+            # Convert participant column to lowercase for case-insensitive matching
+            df_metrics["participant"] = df_metrics["participant"].astype(str).str.lower()
+            
+            # Find the participant's row
+            participant_metrics = df_metrics[df_metrics["participant"] == selected_participant]
+
+            if not participant_metrics.empty:
+                r2_value = participant_metrics["r2"].values[0]
+                rmse_value = participant_metrics["rmse"].values[0]
+
 
     # Slider to filter features based on importance threshold
     min_importance_threshold = st.slider(
@@ -163,6 +193,13 @@ with left_col:
 
     # **Fix alignment & adjust border size**
     fig.update_layout(
+        title={
+        'text': f"R²: {r2_value:.4f}  |  RMSE: {rmse_value:.4f}",
+        'x': 0.5,  # x-position of the title (0-1)
+        'y': 0.97,  # y-position of the title (0-1)
+        'xanchor': 'center',  # horizontal alignment ('left', 'center', 'right')
+        'yanchor': 'top'  # vertical alignment ('top', 'middle', 'bottom')
+    },
         margin=dict(l=10, r=20, t=20, b=10),
         xaxis_title="SHAP Value",
         yaxis_title="Features",
@@ -184,3 +221,6 @@ with left_col:
 
     # Add the chatbot to the page
     app_with_chatbot.show_chatbot_ui()
+
+
+# WORKING
