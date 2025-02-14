@@ -112,40 +112,51 @@ with left_col:
         st.stop()
 
     # Group by participant and find row with highest R²
-    try:
-        best_performance_df = combined_df.loc[combined_df.groupby("participant")["r2"].idxmax()].reset_index(drop=True)
-    except KeyError:
-        st.error("Error computing best performance: Some participants may have missing values.")
-        st.stop()
+    best_performance_df = combined_df.loc[combined_df.groupby("participant")["r2"].idxmax()].reset_index(drop=True)
 
-    # Ensure 'participant' is retained if possible
-    if "participant" in best_performance_df.columns and best_performance_df["participant"].isna().all():
-        best_performance_df = best_performance_df.drop(columns=["participant"])
-
-    # If best_performance_df is empty after filtering, stop execution
-    if best_performance_df.empty:
-        st.warning("No best performance data available after filtering.")
-        st.stop()
-
-    # Make index start from 1 instead of 0
-    best_performance_df.index = best_performance_df.index + 1
-
-    # Rename columns for better display
-    column_renames = {
+    # Ensure column renaming is correctly applied
+    rename_map = {
         "participant": "Participant",
-        "nomot_idiog": "Nomothetic/Idiographic",
-        "nlp_approach": "NLP Approach",
         "r2": "R²",
         "rmse": "RMSE",
-        "p_value": "P Value"
+        "p_value": "P Value",
+        "nomot_idiog": "Nomothetic/Idiographic",
+        "nlp_approach": "NLP Approach"
     }
-    best_performance_df = best_performance_df.rename(columns=column_renames)
+    best_performance_df = best_performance_df.rename(columns=rename_map)
 
-    # Reorder columns
-    ordered_columns = ["Participant", "Nomothetic/Idiographic", "NLP Approach", "R²", "RMSE", "P Value"]
-    best_performance_df = best_performance_df[ordered_columns]
+    # Load the "Counts" file
+    counts_file = f"comb_{ml_model_short}_{outcome}_nomot.csv"
+    counts_path = os.path.join(DATA_DIR, counts_file)
 
-    # st.success("Loaded and processed all relevant data.")
+    if os.path.exists(counts_path):
+        counts_df = pd.read_csv(counts_path)
+        counts_df.columns = counts_df.columns.str.lower()  # Standardize column names to lowercase
+
+        # Find participant and count column names case-insensitively
+        participant_col = next((col for col in counts_df.columns if "participant" in col), None)
+        count_col = next((col for col in counts_df.columns if "count" in col), None)
+
+        if participant_col and count_col:
+            counts_df = counts_df[[participant_col, count_col]].rename(columns={participant_col: "Participant", count_col: "Counts"})
+            counts_df["Participant"] = counts_df["Participant"].astype(str)
+
+            # Merge counts into best_performance_df
+            best_performance_df = best_performance_df.merge(counts_df, on="Participant", how="left")
+        else:
+            st.warning(f"Could not find required columns in {counts_file}. 'Counts' column will be missing.")
+
+    else:
+        st.warning(f"File {counts_file} not found. 'Counts' column will be missing.")
+
+    # Ensure "Counts" column exists, fill missing values, and move to the last position
+    best_performance_df["Counts"] = best_performance_df["Counts"].fillna(0).astype(int)
+
+    # Sort table by "Participant" (A-Z) by default
+    best_performance_df = best_performance_df.sort_values("Participant", ascending=True)
+
+    # Ensure index starts from 1
+    best_performance_df.index = range(1, len(best_performance_df) + 1)
 
 # Display on the right
 with right_col:
