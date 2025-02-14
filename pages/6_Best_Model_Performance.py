@@ -158,15 +158,16 @@ with left_col:
     # Ensure index starts from 1
     best_performance_df.index = range(1, len(best_performance_df) + 1)
 
+    # Reorder columns
+    best_performance_df = best_performance_df[["Participant", "Nomothetic/Idiographic", "NLP Approach", "R²", "RMSE", "P Value", "Counts"]]
+
 # Display on the right
 with right_col:
-    st.write("")  # Spacer
+    st.write("")
     if not best_performance_df.empty:
         st.dataframe(best_performance_df, height=600, width=1200)
     else:
         st.warning("No data available for the selected criteria.")
-
-    st.write("")  # Spacer
 
 st.write("</div>", unsafe_allow_html=True)
 
