@@ -62,7 +62,7 @@ with left_col:
     else:
         outcome = st.selectbox("Outcome", ["Angry", "Nervous", "Sad", "Negative Affect"]).lower()
         outcome = "na" if outcome == "negative affect" else outcome
-        nlp_approach_value = "comb" if nlp_approach == "COMBINED" else nlp_approach.lower()
+        nlp_approach_value = "comb" if nlp_approach == "COMBINED" else nlp_approach
 
         # File names for EN and RF models
         file_name_en = f"{nlp_approach_value}_en_{outcome}_{nom_idio_value}.csv"

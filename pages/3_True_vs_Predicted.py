@@ -49,7 +49,8 @@ def load_and_plot_graph(graph_index):
         st.write("**Graph Settings:**")
 
         # Dropdown Filters (Stacked in Left Column)
-        outcome = st.selectbox(f"Outcome ({graph_index})", ["angry", "nervous", "sad", "na"], key=f"outcome_{graph_index}")
+        outcome = st.selectbox(f"Outcome ({graph_index})", ["Angry", "Nervous", "Sad", "Negative Affect"], key=f"outcome_{graph_index}").lower()
+        outcome = "na" if outcome == "negative affect" else outcome
         nomothetic_idiographic = st.selectbox("Idiographic/Nomothetic", ["Idiographic", "Nomothetic"], key=f"nom_idio_{graph_index}")
         ml_model = st.selectbox(f"ML Model ({graph_index})", ["Elastic Net (en)", "Random Forest (rf)"], key=f"ml_model_{graph_index}")
 
@@ -79,7 +80,7 @@ def load_and_plot_graph(graph_index):
             selected_participant = st.selectbox(f"Participant ({graph_index})", participants, key=f"participant_{graph_index}")
 
             # **Now show success message AFTER participant selection**
-            st.success(f"Loaded data: **{file_name}**")
+            # st.success(f"Loaded data: **{file_name}**")
 
         else:
             st.warning("⚠️ The selected properties have already been used.")  # Custom warning message
