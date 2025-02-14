@@ -61,7 +61,7 @@ with left_col:
             st.warning("No data for the selected outcome and Nomothetic/Idiographic combination.")
             st.stop()
 
-        st.success("Loaded data: **modelfit_gpt_all.csv** (GPT mode)")
+        # st.success("Loaded data: **modelfit_gpt_all.csv** (GPT mode)")
         # Clean up columns
         if "unnamed: 0" in df.columns:
             df = df.drop(columns=["unnamed: 0"])
@@ -70,7 +70,8 @@ with left_col:
 
     else:
         # -- Non-GPT case (original logic) --
-        outcome = st.selectbox("Outcome", ["angry", "nervous", "sad", "na"])
+        outcome = st.selectbox("Outcome", ["Angry", "Nervous", "Sad", "Negative Affect"]).lower()
+        outcome = "na" if outcome == "negative affect" else outcome
         file_name = f"{nlp_approach_value}_{ml_model_short}_{outcome}_{nom_idio_value}.csv"
         file_path = os.path.join(DATA_DIR, file_name)
 
@@ -85,7 +86,7 @@ with left_col:
             required_columns = ["id", "participant", "r", "r2", "rmse", "p_value"]
             df = df[[col for col in required_columns if col in df.columns]]
 
-            st.success(f"Loaded data: **{file_name}**")
+            # st.success(f"Loaded data: **{file_name}**")
         else:
             st.error(f"File not found: {file_name}")
             st.stop()

@@ -57,12 +57,12 @@ with left_col:
             st.warning("No data for the selected outcome and Nomothetic/Idiographic combination.")
             st.stop()
 
-        st.success("Loaded data: **modelfit_gpt_all.csv** (GPT mode)")
+        # st.success("Loaded data: **modelfit_gpt_all.csv** (GPT mode)")
 
     else:
         outcome = st.selectbox("Outcome", ["Angry", "Nervous", "Sad", "Negative Affect"]).lower()
         outcome = "na" if outcome == "negative affect" else outcome
-        nlp_approach_value = "comb" if nlp_approach == "COMBINED" else nlp_approach
+        nlp_approach_value = "comb" if nlp_approach == "COMBINED" else nlp_approach.lower()
 
         # File names for EN and RF models
         file_name_en = f"{nlp_approach_value}_en_{outcome}_{nom_idio_value}.csv"
@@ -77,14 +77,14 @@ with left_col:
         if os.path.exists(file_path_en):
             df_en = pd.read_csv(file_path_en)
             df_en.columns = df_en.columns.str.lower()
-            st.success(f"Loaded data: **{file_name_en}**")
+            # st.success(f"Loaded data: **{file_name_en}**")
         else:
             st.error(f"File not found: {file_name_en}")
 
         if os.path.exists(file_path_rf):
             df_rf = pd.read_csv(file_path_rf)
             df_rf.columns = df_rf.columns.str.lower()
-            st.success(f"Loaded data: **{file_name_rf}**")
+            # st.success(f"Loaded data: **{file_name_rf}**")
         else:
             st.error(f"File not found: {file_name_rf}")
 
