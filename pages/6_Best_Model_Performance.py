@@ -61,7 +61,7 @@ with left_col:
                 if "id" in df.columns:
                     df = df.rename(columns={"id": "participant"})
                 
-                df["nomot_idiog"] = ""  # GPT has no nomot/idiog column
+                df["nomot_idiog"] = "N/A (LLM Ratings)"  # GPT has no nomot/idiog column
                 nlp_approach = "GPT"
             else:
                 nlp_approach = "comb" if "comb" in file_name else "LDA" if "LDA" in file_name else "LIWC"
