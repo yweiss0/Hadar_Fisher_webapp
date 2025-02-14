@@ -64,7 +64,7 @@ with left_col:
                 nomot_idiog = "Nomothetic" if "nomot" in file_name else "Idiographic"
                 df["nomot_idiog"] = nomot_idiog
 
-            df["nlp_approach"] = nlp_approach
+            df["nlp_approach"] = nlp_approach  # Track NLP Approach
             df["source_file"] = file_name  # Track source file
 
             required_columns = ["id", "participant", "r2", "rmse", "p_value", "nomot_idiog", "nlp_approach"]
@@ -93,6 +93,7 @@ with left_col:
     column_renames = {
         "participant": "Participant",
         "nomot_idiog": "Nomothetic/Idiographic",
+        "nlp_approach": "NLP Approach",
         "r2": "R²",
         "rmse": "RMSE",
         "p_value": "P Value"
@@ -100,7 +101,7 @@ with left_col:
     best_performance_df = best_performance_df.rename(columns=column_renames)
 
     # Reorder columns
-    ordered_columns = ["Participant", "Nomothetic/Idiographic", "R²", "RMSE", "P Value"]
+    ordered_columns = ["Participant", "Nomothetic/Idiographic", "NLP Approach", "R²", "RMSE", "P Value"]
     best_performance_df = best_performance_df[ordered_columns]
 
     st.success("Loaded and processed all relevant data.")
