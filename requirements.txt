@@ -9,3 +9,4 @@ langchain-openai
 langchain-community
 langchain-core
 faiss-cpu
+langchain-huggingface
