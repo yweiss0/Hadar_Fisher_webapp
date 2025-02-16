@@ -15,6 +15,7 @@ import time
 from streamlit_float import *
 from dataclasses import dataclass
 from typing import Literal
+from langchain_huggingface import HuggingFaceEmbeddings
 
 
 
@@ -220,12 +221,24 @@ def create_message_div(msg: Message) -> str:
 
 # Function to load FAISS vector store
 def load_vectorstore():
-    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL, openai_api_key=OPENAI_API_KEY)
+    """Loads FAISS vector store with free Hugging Face embeddings (No OpenAI API required)."""
+    
+    # Load embeddings model from Hugging Face
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    
+    # Load FAISS vector store
     return FAISS.load_local(
         INDEX_NAME,
         embeddings,
         allow_dangerous_deserialization=True
     )
+#def load_vectorstore():
+#    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL, openai_api_key=OPENAI_API_KEY)
+#    return FAISS.load_local(
+#        INDEX_NAME,
+#        embeddings,
+#        allow_dangerous_deserialization=True
+#    )
 
 # Function to set up LLM
 def setup_llm():
