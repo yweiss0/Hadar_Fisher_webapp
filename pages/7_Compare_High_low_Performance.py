@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import plotly.graph_objects as go
+import app_with_chatbot
 
 # File Paths
 DATA_DIR_1 = "data/files_tab_1_2/"
@@ -225,3 +226,5 @@ with right_col:
         st.plotly_chart(fig2)
     else:
         st.warning("No variables met the filtering criteria.") 
+# Add the chatbot to the page
+app_with_chatbot.show_chatbot_ui()
