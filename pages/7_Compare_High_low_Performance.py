@@ -83,7 +83,7 @@ with left_col:
             opacity: 0;
             transition: opacity 0.3s;
         }}
-        .tooltip:hover .tooltip-text {{
+        .tooltip-container:hover .tooltip-text {{
             visibility: visible;
             opacity: 1;
         }}
