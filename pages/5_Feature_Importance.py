@@ -19,7 +19,7 @@ with right_col:
     st.write("### Controls")
 
     # Dropdowns
-    outcome = st.selectbox("Outcome", ["Anger", "Nervous", "Sad", "Negative Affect"])
+    outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad", ])
     outcome = "na" if outcome.lower() == "negative affect" else outcome.lower()
 
     ml_model = st.selectbox("Model", ["Elastic Net (EN)", "Random Forest (RF)"])
@@ -96,9 +96,9 @@ with right_col:
     # Slider to filter features based on importance threshold
     min_importance_threshold = st.slider(
         "Minimum Feature Importance Threshold",
-        min_value=0.0, 
+        min_value=-0.01, 
         max_value=0.01, 
-        value=0.0030,  # Default at 0.0030
+        value=-0.0020,  # Default at -0.0020
         step=0.0001,
         format="%.4f"
     )
@@ -117,7 +117,7 @@ with left_col:
         st.stop()
 
     # Define sorting order for NLP methods
-    nlp_order = {"text feature": 1, "gpt": 2, "vader": 3, "liwc": 4}
+    nlp_order = {"text leangth": 1, "gpt": 2, "vader": 3, "liwc": 4, "lda": 5, "time": 6}
     df_filtered["nlp_order"] = df_filtered["nlp"].map(nlp_order)
 
     # Sort features by NLP method first, then by importance
@@ -141,8 +141,9 @@ with left_col:
         "liwc": "red",
         "gpt": "blue",
         "vader": "green",
-        "lda": "purple",
-        "text feature": "black"
+        "text leangth": "black",
+        "time": "purple",
+        "lda": "orange",
     }
 
     # Assign colors dynamically, ensuring no NaN values
@@ -155,7 +156,7 @@ with left_col:
     for nlp_method, color in color_map.items():
         df_subset = df_sorted[df_sorted["nlp"] == nlp_method]
         for _, row in df_subset.iterrows():
-            line_width = 3 if row["nlp"] != "text feature" else 2  # Ensure black lines are always visible
+            line_width = 3 if row["nlp"] != "text leangth" else 2  # Ensure black lines are always visible
             fig.add_trace(go.Scatter(
                 x=[0, row["importance"]],  # Line from 0 to importance value
                 y=[row["y_position"], row["y_position"]],  # Keep the same y-value
@@ -209,12 +210,21 @@ with left_col:
         plot_bgcolor="white",
         paper_bgcolor="white",
         yaxis=dict(tickmode="array", tickvals=y_positions, ticktext=feature_list),
-        shapes=[dict(
-            type="rect",
-            xref="paper", yref="paper",
-            x0=-0.01, y0=-0.0001, x1=1.01, y1=0.96, # **Cover the entire plot area**
-            line=dict(color="black", width=0.8)
-        )]
+        shapes=[
+    dict(
+        type="rect",
+        xref="paper", yref="paper",
+        x0=-0.01, y0=-0.0001, x1=1.01, y1=0.96,  # **Cover the entire plot area**
+        line=dict(color="black", width=0.8)
+    ),
+    dict(
+        type="line",
+        x0=0, x1=0,  # Vertical line at x=0
+        y0=min(y_positions) - 1, y1=max(y_positions) + 1,  # Extend slightly beyond feature range
+        xref="x", yref="y",
+        line=dict(color="black", width=0.5, dash="dash")  # Dashed line style
+    )
+]
     )
 
     st.plotly_chart(fig, use_container_width=True)
