@@ -18,7 +18,7 @@ with left_col:
     
     # Dropdowns
     ml_model = st.selectbox("ML Model", ["Elastic Net (en)", "Random Forest (rf)"])
-    outcome = st.selectbox("Outcome", ["Angry", "Nervous", "Sad", "Negative Affect"]).lower()
+    outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad", ]).lower()
     outcome = "na" if outcome == "negative affect" else outcome
     ml_model_short = "en" if ml_model == "Elastic Net (en)" else "rf"
 
@@ -125,7 +125,7 @@ with left_col:
     # Load feature importance data
     feature_file = os.path.join(DATA_DIR_4, f"Featureimportance_{ml_model_short}_comb_{outcome}.csv")
     if os.path.exists(feature_file):
-        feature_df = pd.read_csv(feature_file)
+        feature_df = pd.read_csv(feature_file, encoding="ISO-8859-1")
         feature_df.columns = feature_df.columns.str.lower().str.strip()
     else:
         st.error(f"Feature importance file {feature_file} not found.")

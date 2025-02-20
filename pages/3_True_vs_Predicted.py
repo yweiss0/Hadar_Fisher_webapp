@@ -18,7 +18,7 @@ col1, col2 = st.columns([8, 1])  # Title takes 8/9th, Refresh button takes 1/9th
 with col1:
     st.title("📈 True vs Predicted NA Levels")
 with col2:
-    if st.button("🔄 Refresh", key="hard_refresh"):
+    if st.button("🔄 Clear All", key="hard_refresh"):
         # **Clear all session state variables before refreshing**
         for key in list(st.session_state.keys()):
             del st.session_state[key]  # Completely reset session state
@@ -49,7 +49,7 @@ def load_and_plot_graph(graph_index):
         st.write("**Graph Settings:**")
 
         # Dropdown Filters (Stacked in Left Column)
-        outcome = st.selectbox(f"Outcome ({graph_index})", ["Angry", "Nervous", "Sad", "Negative Affect"], key=f"outcome_{graph_index}").lower()
+        outcome = st.selectbox(f"Outcome ({graph_index})", ["Negative Affect", "Angry", "Nervous", "Sad"], key=f"outcome_{graph_index}").lower()
         outcome = "na" if outcome == "negative affect" else outcome
         nomothetic_idiographic = st.selectbox("Idiographic/Nomothetic", ["Idiographic", "Nomothetic"], key=f"nom_idio_{graph_index}")
         ml_model = st.selectbox(f"ML Model ({graph_index})", ["Elastic Net (en)", "Random Forest (rf)"], key=f"ml_model_{graph_index}")

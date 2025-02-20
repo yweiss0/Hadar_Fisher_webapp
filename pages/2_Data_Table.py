@@ -70,7 +70,7 @@ with left_col:
 
     else:
         # -- Non-GPT case (original logic) --
-        outcome = st.selectbox("Outcome", ["Angry", "Nervous", "Sad", "Negative Affect"]).lower()
+        outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]).lower()
         outcome = "na" if outcome == "negative affect" else outcome
         file_name = f"{nlp_approach_value}_{ml_model_short}_{outcome}_{nom_idio_value}.csv"
         file_path = os.path.join(DATA_DIR, file_name)

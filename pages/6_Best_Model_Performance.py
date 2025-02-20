@@ -18,7 +18,7 @@ with left_col:
 
     # Dropdowns
     ml_model = st.selectbox("ML Model", ["Elastic Net (en)", "Random Forest (rf)"])
-    outcome = st.selectbox("Outcome", ["Angry", "Nervous", "Sad", "Negative Affect"]).lower()
+    outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]).lower()
     outcome = "na" if outcome == "negative affect" else outcome
     ml_model_short = "en" if ml_model == "Elastic Net (en)" else "rf"
 

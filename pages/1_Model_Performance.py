@@ -60,7 +60,7 @@ with left_col:
         # st.success("Loaded data: **modelfit_gpt_all.csv** (GPT mode)")
 
     else:
-        outcome = st.selectbox("Outcome", ["Angry", "Nervous", "Sad", "Negative Affect"]).lower()
+        outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]).lower()
         outcome = "na" if outcome == "negative affect" else outcome
         nlp_approach_value = "comb" if nlp_approach == "COMBINED" else nlp_approach
 
