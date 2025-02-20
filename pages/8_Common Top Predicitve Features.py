@@ -60,6 +60,8 @@ for selected_emotion in emotions:
     # Filter for top variables across all participants
     top_variables = df_count.groupby("variable")["count"].sum().nlargest(num_variables).index
     df_filtered = df_count[df_count["variable"].isin(top_variables)]
+    if selected_emotion == "na":
+        selected_emotion = "Negative Affect"
     
     # Plot with Plotly
     fig = px.bar(
