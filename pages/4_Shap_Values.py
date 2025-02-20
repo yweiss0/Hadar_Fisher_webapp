@@ -18,7 +18,7 @@ with right_col:
     st.write("### Controls")
 
     # Dropdowns
-    outcome = st.selectbox("Outcome", ["Anger", "Nervous", "Sad", "Negative Affect"])
+    outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"])
     outcome = "na" if outcome.lower() == "negative affect" else outcome.lower()
 
     ml_model = st.selectbox("Model", ["Elastic Net (EN)", "Random Forest (RF)"])
@@ -66,9 +66,9 @@ with right_col:
     # Slider to filter features based on importance threshold
     min_importance_threshold = st.slider(
         "Minimum Feature Importance Threshold",
-        min_value=0.0, 
+        min_value=-0.01, 
         max_value=0.01, 
-        value=0.0065,  # Default at 0.0065
+        value=0.005,  # Default set to  0.005
         step=0.0001,
         format="%.4f"
     )
@@ -83,7 +83,7 @@ with left_col:
 
     # Apply the importance threshold to filter out low-importance features
     filtered_features = df_filtered.groupby("variable")["importance"].max()
-    valid_features = filtered_features[filtered_features >= min_importance_threshold].index
+    valid_features = filtered_features[filtered_features.abs() >= min_importance_threshold].index
     df_filtered = df_filtered[df_filtered["variable"].isin(valid_features)]
 
     # Pivot for heatmap (Swapped axes: participants → x, features → y)
@@ -102,41 +102,31 @@ with left_col:
         "liwc": "red",
         "gpt": "blue",
         "vader": "green",
-        "text feature": "black"
+        "text length": "black",
+        "time": "purple",
+        "lda": "orange",
     }
 
     # Assign colors based on NLP method (default to black if unknown)
-    feature_colors = [color_map.get(nlp_methods.get(var, "text feature"), "black") for var in heatmap_data.index]
-
+    feature_colors = [color_map.get(nlp_methods.get(var, "text length"), "black") for var in heatmap_data.index]
     # Create custom HTML tick labels to color them
-    colored_labels = [
-        f"<span style='color:{color}'>{label}</span>"
-        for label, color in zip(heatmap_data.index, feature_colors)
+    
+    
+    # Create color scale for positive and negative values
+    color_scale = [
+        [0.0, "rgb(0, 0, 139)"],  # Dark Blue for most negative
+        [0.25, "rgb(70, 130, 180)"],
+        [0.5, "rgb(255, 255, 255)"],  # White for zero
+        [0.75, "rgb(255, 165, 0)"],
+        [1.0, "rgb(139, 0, 0)"]  # Dark Red for most positive
     ]
-
-    # Set color scale based on model
-    if ml_model_short == "en":
-        color_scale = [
-            [0.0, "rgb(251,243,240)"],  # Lightest
-            [0.25, "rgb(208,152,134)"],
-            [0.5, "rgb(180,97,77)"],
-            [0.75, "rgb(155,50,28)"],
-            [1.0, "rgb(136,20,3)"]  # Darkest
-        ]
-        vmax_value = 0.040
-    else:  # RF model color scale (Shades of purple)
-        color_scale = [
-            [0.0, "rgb(251,243,240)"],  # Lightest
-            [0.25, "rgb(213,201,232)"],
-            [0.5, "rgb(163,138,202)"],
-            [0.75, "rgb(153,125,196)"],
-            [1.0, "rgb(94,67,170)"]  # Darkest
-        ]
-        vmax_value = 0.10
 
     # Adjust heatmap height dynamically based on number of features
     num_features = len(valid_features)
-    heatmap_height = min(max(600, num_features * 40), 800)  # Min 600px, Max 1500px
+    heatmap_height = min(max(600, num_features * 40), 1000)  # Min 600px, Max 1000px
+
+    # Determine max absolute value for symmetric color scaling
+    vmax_value = max(abs(heatmap_data.min().min()), abs(heatmap_data.max().max()))
 
     # Create heatmap using Plotly
     fig = go.Figure(
@@ -146,33 +136,26 @@ with left_col:
             y=heatmap_data.index,  # Features on Y-axis
             colorscale=color_scale,
             colorbar=dict(title="SHAP Value"),
-            zmin=0,
+            zmin=-vmax_value,
             zmax=vmax_value,
-        )
+            text=heatmap_data.values.round(4),
+            hoverinfo="text"
+        ),
     )
 
-    # Customize layout for better readability
+    # Update y-axis with colored labels
     fig.update_layout(
-        xaxis=dict(
-            title="Participant", 
-            tickangle=90, 
-            tickmode="array", 
-            tickvals=list(range(len(heatmap_data.columns)))
-        ),
         yaxis=dict(
-            title="Feature", 
-            tickmode="array", 
+            tickmode="array",
             tickvals=list(range(len(heatmap_data.index))),
-            ticktext=colored_labels  # Use colored HTML labels
-        ),
-        autosize=False,
-        height=heatmap_height  # Dynamically adjusted height
+            ticktext=[f'<span style="color:{color}">{label}</span>' for label, color in zip(heatmap_data.index, feature_colors)],
+        )
     )
 
     # Show Plotly figure
     st.plotly_chart(fig, use_container_width=True)
 
-    # Add centered and smaller legend title below the heatmap
+     # Add centered and smaller legend title below the heatmap
     st.write("")
     st.markdown(
         "<h5 style='text-align: center;'>Feature Reference (NLP Method Coloring)</h5>", 
@@ -185,7 +168,9 @@ with left_col:
         <div style="width: 20px; height: 10px; background-color: red;"></div> <span>LIWC</span>
         <div style="width: 20px; height: 10px; background-color: blue;"></div> <span>GPT</span>
         <div style="width: 20px; height: 10px; background-color: green;"></div> <span>VADER</span>
-        <div style="width: 20px; height: 10px; background-color: black;"></div> <span>Text Feature</span>
+        <div style="width: 20px; height: 10px; background-color: black;"></div> <span>Text Length</span>
+        <div style="width: 20px; height: 10px; background-color: purple;"></div> <span>Time</span>
+        <div style="width: 20px; height: 10px; background-color: orange;"></div> <span>LDA</span>
     </div>
     """
     st.write(legend_html, unsafe_allow_html=True)
