@@ -145,6 +145,7 @@ with left_col:
 
     # Update y-axis with colored labels
     fig.update_layout(
+        height=heatmap_height,
         yaxis=dict(
             tickmode="array",
             tickvals=list(range(len(heatmap_data.index))),
