@@ -222,7 +222,7 @@ with left_col:
         x0=0, x1=0,  # Vertical line at x=0
         y0=min(y_positions) - 1, y1=max(y_positions) + 1,  # Extend slightly beyond feature range
         xref="x", yref="y",
-        line=dict(color="black", width=0.5, dash="dash")  # Dashed line style
+        line=dict(color="black", width=0.3, dash="dash")  # Dashed line style
     )
 ]
     )
