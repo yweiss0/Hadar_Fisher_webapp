@@ -193,7 +193,7 @@ with right_col:
 
         # Pie Chart 2: NLP Approach
         nlp_approach_counts = best_performance_df["NLP Approach"].value_counts()
-        nlp_approach_labels = [label.replace("comb", "combine") for label in nlp_approach_counts.index]
+        nlp_approach_labels = [label.replace("comb", "All text features combined") for label in nlp_approach_counts.index]
         fig2 = px.pie(
             values=nlp_approach_counts.values,
             names=nlp_approach_labels,
