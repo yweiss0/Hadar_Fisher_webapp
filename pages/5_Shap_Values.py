@@ -115,7 +115,7 @@ with right_col:
     st.markdown(
         f"""
         <div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">
-            <b style="color: green;">✅ Data Included:</b> <br> Importance values &lt; <b>{slider_value[0]:.4f}</b> and &gt; <b>{slider_value[1]:.4f}</b><br>
+            <b style="color: green;">✅ Data Included:</b> <br> Importance values < <b>{slider_value[0]:.4f}</b> and > <b>{slider_value[1]:.4f}</b><br>
             <b style="color: red;">❌ Data Filtered Out:</b> <br> Importance values between <b>{slider_value[0]:.4f}</b> and <b>{slider_value[1]:.4f}</b>
         </div>
         """,
@@ -125,6 +125,7 @@ with right_col:
     # Use the positive threshold from the symmetric range as the filtering threshold
     min_importance_threshold = slider_value[1]
     # --- End Dynamic Component ---
+
 
 with left_col:
     # Filter data based on selected participants
@@ -181,9 +182,11 @@ with left_col:
         [1.0, "rgb(165, 0, 38)"],       # Deep Red (Strong Positive)
     ]
 
-    # Adjust heatmap height dynamically based on number of features
+    # Adjust heatmap height and width dynamically
     num_features = len(heatmap_data)
+    num_participants = len(heatmap_data.columns)
     heatmap_height = min(max(600, num_features * 40), 1000)  # Min 600px, Max 1000px
+    heatmap_width = max(800, num_participants * 75)  # Keep dynamic width for consistency
 
     # Determine max absolute value for symmetric color scaling
     vmax_value = max(abs(heatmap_data.min().min()), abs(heatmap_data.max().max()))
@@ -207,27 +210,55 @@ with left_col:
         ),
     )
 
-    # Update y-axis with colored labels
-    fig.update_layout(
-        height=heatmap_height,
-        yaxis=dict(
-            tickmode="array",
-            tickvals=list(range(len(heatmap_data.index))),
-            ticktext=[
-                f'<span style="color:{color}">{label}</span>'
-                for label, color in zip(heatmap_data.index, feature_colors)
-            ],
+    # Update layout with conditional x-axis ticks based on "All" selection
+    if select_all:
+        fig.update_layout(
+            height=heatmap_height,
+            width=heatmap_width,
+            yaxis=dict(
+                tickmode="array",
+                tickvals=list(range(len(heatmap_data.index))),
+                ticktext=[
+                    f'<span style="color:{color}">{label}</span>'
+                    for label, color in zip(heatmap_data.index, feature_colors)
+                ],
+            ),
+            xaxis=dict(
+                tickmode="array",
+                tickvals=[len(heatmap_data.columns) // 2],  # Single tick in the middle
+                ticktext=["All Participants"],  # Single label
+                tickfont=dict(size=12),
+            )
         )
-    )
+    else:
+        fig.update_layout(
+            height=heatmap_height,
+            width=heatmap_width,
+            yaxis=dict(
+                tickmode="array",
+                tickvals=list(range(len(heatmap_data.index))),
+                ticktext=[
+                    f'<span style="color:{color}">{label}</span>'
+                    for label, color in zip(heatmap_data.index, feature_colors)
+                ],
+            ),
+            xaxis=dict(
+                tickmode="array",
+                tickvals=list(range(len(heatmap_data.columns))),  # One tick per participant
+                ticktext=heatmap_data.columns,  # Individual participant names
+                tickangle=45,  # Rotate labels for readability
+                tickfont=dict(size=10),
+            )
+        )
 
     # Show Plotly figure
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=False)  # Use fixed width
 
     # Add a legend under the graph for the NLP method colors
     legend_items = []
     for method, color in color_map.items():
         legend_items.append(f'<span style="color: {color}; font-weight: bold;">■</span> {method.upper()}')
-    legend_html = " &nbsp;&nbsp; ".join(legend_items)
+    legend_html = "    ".join(legend_items)
     st.markdown(
         f"""
         <div style="font-size: 12px; margin-top: 10px;">
@@ -240,3 +271,5 @@ with left_col:
 
     # Add the chatbot to the page
     app_with_chatbot.show_chatbot_ui()
+
+    # WORKING
