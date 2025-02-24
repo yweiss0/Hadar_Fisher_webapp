@@ -23,8 +23,22 @@ with right_col:
     outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad", ])
     outcome = "na" if outcome.lower() == "negative affect" else outcome.lower()
 
-    ml_model = st.selectbox("Model", ["Elastic Net (EN)", "Random Forest (RF)"])
+    # Dropdown for selecting model
+    ml_model = st.selectbox("Model", ["Elastic Net (EN)", "Random Forest (RF)"], key="ml_model")
     ml_model_short = "en" if ml_model == "Elastic Net (EN)" else "rf"
+
+    # Check if the model selection has changed and update the default slider accordingly.
+    if "prev_ml_model_short" not in st.session_state:
+        st.session_state.prev_ml_model_short = ml_model_short
+    else:
+        if st.session_state.prev_ml_model_short != ml_model_short:
+            st.session_state.prev_ml_model_short = ml_model_short
+            # Update the symmetric slider default based on the model.
+            if ml_model_short == "rf":
+                st.session_state.symmetric_val = (-0.0001, 0.0001)
+            else:
+                st.session_state.symmetric_val = (-0.005, 0.005)
+            st.rerun()  # Rerun to apply the new default
 
     # File selection based on user inputs
     file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}.csv"
