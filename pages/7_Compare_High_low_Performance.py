@@ -18,7 +18,7 @@ with left_col:
     
     # Dropdowns
     ml_model = st.selectbox("ML Model", ["Elastic Net (en)", "Random Forest (rf)"])
-    outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad", ]).lower()
+    outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]).lower()
     outcome = "na" if outcome == "negative affect" else outcome
     ml_model_short = "en" if ml_model == "Elastic Net (en)" else "rf"
 
@@ -44,11 +44,6 @@ with left_col:
     # **Slider for selecting percentage of participants (10% - 50% in 5% steps)**
     total_participants = len(perf_df)
     percentage_options = list(range(10, 51, 5))  # [10, 15, 20, ..., 50]
-
-    # **Styled label with Tooltip**
-    
-
-    # **Slider with dynamic participant calculation**
     percentage = st.select_slider("Percentage of Participants in Each Group", options=percentage_options, value=25)
 
     # Calculate number of participants based on selected percentage
@@ -61,7 +56,6 @@ with left_col:
             align-items: center;
             gap: 6px;
             font-size: 14px;
-            
         }}
         .tooltip {{
             position: relative;
@@ -89,7 +83,7 @@ with left_col:
             opacity: 1;
         }}
         .tooltip svg {{
-            fill: #007BFF; /* Blue color */
+            fill: #007BFF;
             width: 18px;
             height: 18px;
         }}
@@ -112,7 +106,7 @@ with left_col:
     st.markdown(tooltip_html, unsafe_allow_html=True)
 
     # **Slider dynamically adjusts based on `num_of_participants`**
-    st.write("") # Add space for better alignment
+    st.write("")  # Add space for better alignment
     min_part_var = st.slider(
         "Minimum Number of Participants per Variable", 
         0, num_of_participants, min(2, num_of_participants), step=1
@@ -154,32 +148,35 @@ with left_col:
     high_r2_df = feature_df[feature_df["participant"].astype(str).isin(highest_r2)].groupby("variable")[numeric_cols].mean().mean(axis=1)
     low_r2_df = feature_df[feature_df["participant"].astype(str).isin(lowest_r2)].groupby("variable")[numeric_cols].mean().mean(axis=1)
 
-    # Merge and sort by absolute mean difference
+    # Merge into a DataFrame and compute absolute mean difference
     abs_mean_df = pd.DataFrame({
         "High R²": high_r2_df,
         "Low R²": low_r2_df
     }).fillna(0)
-
     abs_mean_df["Abs Mean Diff"] = abs(abs_mean_df["High R²"] - abs_mean_df["Low R²"])
-    abs_mean_df = abs_mean_df.nlargest(20, "Abs Mean Diff")
+    
+    # For the first graph, sort by High R² (descending)
+    abs_mean_df_sorted_high = abs_mean_df.nlargest(20, "High R²").sort_values("High R²", ascending=False)
+    
+    # For the second graph, sort by Abs Mean Diff (descending)
+    abs_mean_df_sorted_diff = abs_mean_df.nlargest(20, "Abs Mean Diff").sort_values("Abs Mean Diff", ascending=False)
 
 with right_col:
-    # st.write("**Top 20 Features by Absolute Mean Difference**")
-    
-    if not abs_mean_df.empty:
+    if not abs_mean_df_sorted_high.empty:
+        # First Graph: High vs. Low R² Groups
         fig = go.Figure()
         
         fig.add_trace(go.Bar(
-            y=abs_mean_df.index,
-            x=abs_mean_df["High R²"],
+            y=abs_mean_df_sorted_high.index,
+            x=abs_mean_df_sorted_high["High R²"],
             orientation='h',
             name='High R²',
             marker=dict(color='red')
         ))
         
         fig.add_trace(go.Bar(
-            y=abs_mean_df.index,
-            x=abs_mean_df["Low R²"],
+            y=abs_mean_df_sorted_high.index,
+            x=abs_mean_df_sorted_high["Low R²"],
             orientation='h',
             name='Low R²',
             marker=dict(color='turquoise')
@@ -194,25 +191,26 @@ with right_col:
             template='plotly_white',
             legend_title_text="R² Groups",
             legend=dict(
-                orientation="v",  # **Horizontal legend**
-                yanchor="top",    # **Align legend to the top of its box**           # **Move legend below the chart**
-                xanchor="center",  # **Center legend horizontally**
-                x=1             # **Position at center**
-            )
+                orientation="v",
+                yanchor="top",
+                xanchor="center",
+                x=1
+            ),
+            yaxis=dict(autorange='reversed')  # Reverse so highest is on top
         )
         
         st.plotly_chart(fig)
-        # **Second Graph: Difference between Absolute Means**
-        # st.write("**Difference in Absolute Mean Between High and Low R² Groups**")
-
+        
+        # Second Graph: Difference in Absolute Mean between High and Low R² Groups,
+        # sorted by Abs Mean Diff (highest on top)
         fig2 = go.Figure()
 
         fig2.add_trace(go.Bar(
-            y=abs_mean_df.index,
-            x=abs_mean_df["Abs Mean Diff"],
+            y=abs_mean_df_sorted_diff.index,
+            x=abs_mean_df_sorted_diff["Abs Mean Diff"],
             orientation='h',
             name="Abs Mean Difference",
-            marker=dict(color='gray')  # **Choose a distinct color for clarity**
+            marker=dict(color='gray')
         ))
 
         fig2.update_layout(
@@ -220,11 +218,13 @@ with right_col:
             xaxis_title="Absolute Mean Difference",
             yaxis_title="Features",
             height=600,
-            template='plotly_white'
+            template='plotly_white',
+            yaxis=dict(autorange='reversed')  # Reverse so highest difference is on top
         )
 
         st.plotly_chart(fig2)
     else:
         st.warning("No variables met the filtering criteria.") 
+
 # Add the chatbot to the page
 app_with_chatbot.show_chatbot_ui()
