@@ -41,7 +41,7 @@ with left_col:
     perf_df["participant"] = perf_df["participant"].astype(str)
     perf_df["r2"] = pd.to_numeric(perf_df["r2"], errors="coerce")
 
-    # **Slider for selecting percentage of participants (10% - 50% in 5% steps)**
+    # Slider for selecting percentage of participants (10% - 50% in 5% steps)
     total_participants = len(perf_df)
     percentage_options = list(range(10, 51, 5))  # [10, 15, 20, ..., 50]
     percentage = st.select_slider("Percentage of Participants in Each Group", options=percentage_options, value=25)
@@ -105,7 +105,7 @@ with left_col:
     # Render styled label above the slider
     st.markdown(tooltip_html, unsafe_allow_html=True)
 
-    # **Slider dynamically adjusts based on `num_of_participants`**
+    # Slider dynamically adjusts based on `num_of_participants`
     st.write("")  # Add space for better alignment
     min_part_var = st.slider(
         "Minimum Number of Participants per Variable", 
@@ -129,6 +129,22 @@ with left_col:
     if "participant" not in feature_df.columns or "variable" not in feature_df.columns:
         st.error("Required columns ('participant' or 'variable') are missing in the data.")
         st.stop()
+
+    # If available, process NLP information for coloring y-axis labels
+    if "nlp" in feature_df.columns:
+        feature_df["nlp"] = feature_df["nlp"].str.lower()
+        nlp_methods = feature_df.drop_duplicates("variable").set_index("variable")["nlp"].to_dict()
+    else:
+        nlp_methods = {}
+
+    color_map = {
+        "liwc": "red",
+        "gpt": "blue",
+        "vader": "green",
+        "text length": "black",
+        "time": "purple",
+        "lda": "orange",
+    }
 
     # Keep only selected participants
     feature_df = feature_df[feature_df["participant"].astype(str).isin(highest_r2 + lowest_r2)]
@@ -163,6 +179,10 @@ with left_col:
 
 with right_col:
     if not abs_mean_df_sorted_high.empty:
+        # Generate colored tick labels for first graph based on NLP methods
+        colors_high = [color_map.get(nlp_methods.get(var, "text length"), "black") for var in abs_mean_df_sorted_high.index]
+        tick_text_high = [f'<span style="color:{color}">{var}</span>' for var, color in zip(abs_mean_df_sorted_high.index, colors_high)]
+        
         # First Graph: High vs. Low R² Groups
         fig = go.Figure()
         
@@ -196,13 +216,21 @@ with right_col:
                 xanchor="center",
                 x=1
             ),
-            yaxis=dict(autorange='reversed')  # Reverse so highest is on top
+            yaxis=dict(
+                autorange='reversed',
+                tickmode='array',
+                tickvals=list(abs_mean_df_sorted_high.index),
+                ticktext=tick_text_high
+            )
         )
         
         st.plotly_chart(fig)
         
-        # Second Graph: Difference in Absolute Mean between High and Low R² Groups,
-        # sorted by Abs Mean Diff (highest on top)
+        # Generate colored tick labels for second graph based on NLP methods
+        colors_diff = [color_map.get(nlp_methods.get(var, "text length"), "black") for var in abs_mean_df_sorted_diff.index]
+        tick_text_diff = [f'<span style="color:{color}">{var}</span>' for var, color in zip(abs_mean_df_sorted_diff.index, colors_diff)]
+        
+        # Second Graph: Difference in Absolute Mean between High and Low R² Groups
         fig2 = go.Figure()
 
         fig2.add_trace(go.Bar(
@@ -219,12 +247,30 @@ with right_col:
             yaxis_title="Features",
             height=600,
             template='plotly_white',
-            yaxis=dict(autorange='reversed')  # Reverse so highest difference is on top
+            yaxis=dict(
+                autorange='reversed',
+                tickmode='array',
+                tickvals=list(abs_mean_df_sorted_diff.index),
+                ticktext=tick_text_diff
+            )
         )
 
         st.plotly_chart(fig2)
     else:
         st.warning("No variables met the filtering criteria.") 
+    legend_items = []
+    for method, color in color_map.items():
+        legend_items.append(f'<span style="color: {color}; font-weight: bold;">■</span> {method.upper()}')
+    legend_html = "    ".join(legend_items)
+    st.markdown(
+        f"""
+        <div style="font-size: 12px; margin-top: 10px;">
+            <strong>NLP Methods:</strong><br>
+            {legend_html}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # Add the chatbot to the page
 app_with_chatbot.show_chatbot_ui()

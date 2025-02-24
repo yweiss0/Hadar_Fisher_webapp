@@ -25,10 +25,20 @@ with left_col:
     shap_threshold = st.slider("SHAP Value Threshold", 0.001, 0.05, 0.01, step=0.001)
     
     # Load and filter data
-    csv_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv") and "en" in f]
+    csv_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv") and ml_model_short in f]
     
     # List of predefined emotions
     emotions = ["na", "sad", "angry", "nervous"]
+
+# Define NLP color map (same as in page 5)
+color_map = {
+    "liwc": "red",
+    "gpt": "blue",
+    "vader": "green",
+    "text length": "black",
+    "time": "purple",
+    "lda": "orange",
+}
 
 # Create plots for each emotion
 figs = []
@@ -47,6 +57,13 @@ for selected_emotion in emotions:
         st.error("Missing required columns in the CSV file")
         continue
     
+    # If available, process the NLP column for coloring
+    if "nlp" in df.columns:
+        df["nlp"] = df["nlp"].str.lower()
+        nlp_methods = df.drop_duplicates("variable").set_index("variable")["nlp"].to_dict()
+    else:
+        nlp_methods = {}
+    
     df = df[df["importance"].abs() > shap_threshold]
     
     # Select top N most important features per participant
@@ -61,24 +78,34 @@ for selected_emotion in emotions:
     top_variables = df_count.groupby("variable")["count"].sum().nlargest(num_variables).index
     df_filtered = df_count[df_count["variable"].isin(top_variables)]
     if selected_emotion == "na":
-        selected_emotion = "Negative Affect"
+        emotion_title = "Negative Affect"
+    else:
+        emotion_title = selected_emotion.capitalize()
     
-    # Plot with Plotly
+    # Plot with Plotly Express
     fig = px.bar(
         df_filtered, 
         x="count", 
         y="variable", 
         color="shap_sign", 
         orientation="h", 
-        title=f"Top {num_variables} Variables for {selected_emotion.capitalize()} (Model: {ml_model})",
+        title=f"Top {num_variables} Variables for {emotion_title} (Model: {ml_model})",
         labels={"count": "Percent of Participants", "variable": "Feature", "shap_sign": "SHAP Sign"},
         barmode="stack",
         color_discrete_map={"Positive": "rgb(0,182,185)", "Negative": "rgb(255,79,82)"}
     )
     
+    # Update y-axis tick labels with colored HTML if NLP mapping exists
+    categories = list(df_filtered["variable"].unique())
+    tick_text = [
+        f'<span style="color:{color_map.get(nlp_methods.get(var, "text length"), "black")}">{var}</span>'
+        for var in categories
+    ]
+    fig.update_yaxes(tickmode="array", tickvals=categories, ticktext=tick_text)
+    
     figs.append(fig)
 
-# Display figures in 2x2 grid
+# Display figures in a 2x2 grid
 with right_col:
     row1_col1, row1_col2 = st.columns(2)
     row2_col1, row2_col2 = st.columns(2)
@@ -91,3 +118,18 @@ with right_col:
         row2_col1.plotly_chart(figs[2], use_container_width=True)
     if len(figs) > 3:
         row2_col2.plotly_chart(figs[3], use_container_width=True)
+
+# Add NLP method legend below the plots
+    legend_items = []
+    for method, color in color_map.items():
+        legend_items.append(f'<span style="color: {color}; font-weight: bold;">■</span> {method.upper()}')
+    legend_html = "    ".join(legend_items)
+    st.markdown(
+        f"""
+        <div style="font-size: 12px; margin-top: 10px;">
+            <strong>NLP Methods:</strong><br>
+            {legend_html}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
