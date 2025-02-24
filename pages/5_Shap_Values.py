@@ -262,7 +262,7 @@ with left_col:
     st.markdown(
         f"""
         <div style="font-size: 12px; margin-top: 10px;">
-            <strong>Legend:</strong><br>
+            <strong>NLP Methods:</strong><br>
             {legend_html}
         </div>
         """,
