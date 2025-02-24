@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import plotly.graph_objects as go
 import app_with_chatbot
+import numpy as np
 
 # File Path
 DATA_DIR = "data/files_tab_4/"
@@ -63,15 +64,54 @@ with right_col:
             "Participants", participants, default=participants[:10]
         )
 
-    # Slider to filter features based on importance threshold
-    min_importance_threshold = st.slider(
+    # --- Dynamic Symmetric Range Selector Component ---
+    # Create a list of options with 0.0001 increments.
+    options = [round(x, 4) for x in np.arange(-0.01, 0.01 + 0.0001, 0.0001)]
+
+    # Initialize symmetric slider state if not already set (default to (-0.005, 0.005))
+    if 'symmetric_val' not in st.session_state:
+        st.session_state.symmetric_val = (-0.005, 0.005)
+    if 'prev_val' not in st.session_state:
+        st.session_state.prev_val = st.session_state.symmetric_val
+
+    def update_symmetric():
+        # Compare current and previous values to decide which handle was moved.
+        current = st.session_state.symmetric_val
+        prev = st.session_state.prev_val
+        lower, upper = current
+        prev_lower, prev_upper = prev
+
+        # If the lower handle changed, update the upper handle to its negative.
+        if lower != prev_lower:
+            st.session_state.symmetric_val = (lower, -lower)
+        # If the upper handle changed, update the lower handle to its negative.
+        elif upper != prev_upper:
+            st.session_state.symmetric_val = (-upper, upper)
+        st.session_state.prev_val = st.session_state.symmetric_val
+
+    slider_value = st.select_slider(
         "Minimum Feature Importance Threshold",
-        min_value=-0.01, 
-        max_value=0.01, 
-        value=0.005,  # Default set to  0.005
-        step=0.0001,
-        format="%.4f"
+        options=options,
+        value=st.session_state.symmetric_val,
+        key="symmetric_val",
+        on_change=update_symmetric,
     )
+
+    # Display messages with clear formatting and smaller font
+    st.markdown(
+        f"""
+        <div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">
+            <b style="color: green;">✅ Data Included:</b> <br> Importance values < <b>{slider_value[0]:.4f}</b> and > <b>{slider_value[1]:.4f}</b><br>
+            <b style="color: red;">❌ Data Filtered Out:</b> <br> Importance values between <b>{slider_value[0]:.4f}</b> and <b>{slider_value[1]:.4f}</b>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+    # Use the positive threshold from the symmetric range as the filtering threshold
+    min_importance_threshold = slider_value[1]
+    # --- End Dynamic Component ---
 
 with left_col:
     # Filter data based on selected participants
@@ -81,7 +121,9 @@ with left_col:
     df_filtered = df_filtered.groupby(["participant", "variable"], as_index=False)["importance"].mean()
 
     # Apply the importance threshold to filter out values between -threshold and threshold
-    df_filtered = df_filtered[(df_filtered["importance"] <= -min_importance_threshold) | (df_filtered["importance"] >= min_importance_threshold)]
+    df_filtered = df_filtered[
+        (df_filtered["importance"] <= -min_importance_threshold) | (df_filtered["importance"] >= min_importance_threshold)
+    ]
 
     # Pivot for heatmap (Swapped axes: participants → x, features → y)
     heatmap_data = df_filtered.pivot(index="variable", columns="participant", values="importance").fillna(0)
@@ -109,13 +151,12 @@ with left_col:
 
     # Create color scale for positive and negative values
     color_scale = [
-    [0.0, "rgb(75, 48, 163)"],  # Deep Blue (Strong Negative)
-    [0.25, "rgb(188, 170, 220)"],  # Blue
-    [0.5, "rgb(247, 247, 247)"],  # White (Neutral)
-    [0.75, "rgb(215, 48, 39)"],  # Red
-    [1.0, "rgb(165, 0, 38)"],  # Deep Red (Strong Positive)
-]
-    
+        [0.0, "rgb(75, 48, 163)"],     # Deep Blue (Strong Negative)
+        [0.25, "rgb(188, 170, 220)"],   # Blue
+        [0.5, "rgb(247, 247, 247)"],    # White (Neutral)
+        [0.75, "rgb(215, 48, 39)"],     # Red
+        [1.0, "rgb(165, 0, 38)"],       # Deep Red (Strong Positive)
+    ]
 
     # Adjust heatmap height dynamically based on number of features
     num_features = len(heatmap_data)
@@ -123,14 +164,17 @@ with left_col:
 
     # Determine max absolute value for symmetric color scaling
     vmax_value = max(abs(heatmap_data.min().min()), abs(heatmap_data.max().max()))
-    hover_text = [[f"Participant: {p}<br>Feature: {f}<br>Importance: {heatmap_data.at[f, p]:.4f}" for p in heatmap_data.columns] for f in heatmap_data.index]
+    hover_text = [
+        [f"Participant: {p}<br>Feature: {f}<br>Importance: {heatmap_data.at[f, p]:.4f}" for p in heatmap_data.columns]
+        for f in heatmap_data.index
+    ]
 
     # Create heatmap using Plotly
     fig = go.Figure(
         data=go.Heatmap(
             z=heatmap_data.values,
             x=heatmap_data.columns,  # Participants on X-axis
-            y=heatmap_data.index,  # Features on Y-axis
+            y=heatmap_data.index,    # Features on Y-axis
             colorscale=color_scale,
             colorbar=dict(title="SHAP Value"),
             zmin=-vmax_value,
@@ -146,12 +190,30 @@ with left_col:
         yaxis=dict(
             tickmode="array",
             tickvals=list(range(len(heatmap_data.index))),
-            ticktext=[f'<span style="color:{color}">{label}</span>' for label, color in zip(heatmap_data.index, feature_colors)],
+            ticktext=[
+                f'<span style="color:{color}">{label}</span>'
+                for label, color in zip(heatmap_data.index, feature_colors)
+            ],
         )
     )
 
     # Show Plotly figure
     st.plotly_chart(fig, use_container_width=True)
 
+    # Add a legend under the graph for the NLP method colors
+    legend_items = []
+    for method, color in color_map.items():
+        legend_items.append(f'<span style="color: {color}; font-weight: bold;">■</span> {method.upper()}')
+    legend_html = " &nbsp;&nbsp; ".join(legend_items)
+    st.markdown(
+        f"""
+        <div style="font-size: 12px; margin-top: 10px;">
+            <strong>NLP methods:</strong><br>
+            {legend_html}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     # Add the chatbot to the page
-app_with_chatbot.show_chatbot_ui()
+    app_with_chatbot.show_chatbot_ui()

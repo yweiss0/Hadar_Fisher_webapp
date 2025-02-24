@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import plotly.graph_objects as go
 import app_with_chatbot
+import numpy as np  # Needed for dynamic range options
 
 # File Path
 DATA_DIR = "data/files_tab_4/"
@@ -92,23 +93,62 @@ with right_col:
                 r2_value = participant_metrics["r2"].values[0]
                 rmse_value = participant_metrics["rmse"].values[0]
 
-    # Slider to filter features based on importance threshold
-    min_importance_threshold = st.slider(
+    # --- Dynamic Symmetric Range Selector Component ---
+    # Create a list of options with 0.0001 increments.
+    options = [round(x, 4) for x in np.arange(-0.01, 0.01 + 0.0001, 0.0001)]
+
+    # Initialize symmetric slider state if not already set (default to (0.0000, 0.0000))
+    if 'symmetric_val' not in st.session_state:
+        st.session_state.symmetric_val = (-0.0015, 0.0015)
+    if 'prev_val' not in st.session_state:
+        st.session_state.prev_val = st.session_state.symmetric_val
+
+    def update_symmetric():
+        # Compare current and previous values to decide which handle was moved.
+        current = st.session_state.symmetric_val
+        prev = st.session_state.prev_val
+        lower, upper = current
+        prev_lower, prev_upper = prev
+
+        # If the lower handle changed, update the upper handle to its negative.
+        if lower != prev_lower:
+            st.session_state.symmetric_val = (lower, -lower)
+        # If the upper handle changed, update the lower handle to its negative.
+        elif upper != prev_upper:
+            st.session_state.symmetric_val = (-upper, upper)
+        st.session_state.prev_val = st.session_state.symmetric_val
+
+    slider_value = st.select_slider(
         "Minimum Feature Importance Threshold",
-        min_value=-0.01, 
-        max_value=0.01, 
-        value=0.0000,  # Default at 0.0000
-        step=0.0001,
-        format="%.4f"
+        options=options,
+        value=st.session_state.symmetric_val,
+        key="symmetric_val",
+        on_change=update_symmetric,
     )
 
-# **Move the graph higher up in the left column**
+    # Display messages with clear formatting and smaller font
+    st.markdown(
+        f"""
+        <div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">
+            <b style="color: green;">✅ Data Included:</b> <br> Importance values &lt; <b>{slider_value[0]:.4f}</b> and &gt; <b>{slider_value[1]:.4f}</b><br>
+            <b style="color: red;">❌ Data Filtered Out:</b> <br> Importance values between <b>{slider_value[0]:.4f}</b> and <b>{slider_value[1]:.4f}</b>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Use the positive threshold from the symmetric range as the filtering threshold
+    min_importance_threshold = slider_value[1]
+    # --- End Dynamic Component ---
+
 with left_col:
     # Filter data for the selected participant
     df_filtered = df[df["participant"] == selected_participant].copy()
 
     # Apply new importance threshold filter logic
-    df_filtered = df_filtered[(df_filtered["importance"] <= -abs(min_importance_threshold)) | (df_filtered["importance"] >= abs(min_importance_threshold))]
+    df_filtered = df_filtered[
+        (df_filtered["importance"] <= -abs(min_importance_threshold)) | (df_filtered["importance"] >= abs(min_importance_threshold))
+    ]
 
     if df_filtered.empty:
         st.warning("No features meet the selected importance threshold.")
@@ -193,12 +233,12 @@ with left_col:
     # **Fix alignment & adjust border size**
     fig.update_layout(
         title={
-        'text': f"R²: {r2_value:.4f}  |  RMSE: {rmse_value:.4f}",
-        'x': 0.5,  # x-position of the title (0-1)
-        'y': 0.97,  # y-position of the title (0-1)
-        'xanchor': 'center',  # horizontal alignment ('left', 'center', 'right')
-        'yanchor': 'top'  # vertical alignment ('top', 'middle', 'bottom')
-    },
+            'text': f"R²: {r2_value:.4f}  |  RMSE: {rmse_value:.4f}",
+            'x': 0.5,  # x-position of the title (0-1)
+            'y': 0.97,  # y-position of the title (0-1)
+            'xanchor': 'center',  # horizontal alignment ('left', 'center', 'right')
+            'yanchor': 'top'  # vertical alignment ('top', 'middle', 'bottom')
+        },
         margin=dict(l=10, r=20, t=20, b=10),
         xaxis_title="SHAP Value",
         yaxis_title="Features",
@@ -209,26 +249,23 @@ with left_col:
         paper_bgcolor="white",
         yaxis=dict(tickmode="array", tickvals=y_positions, ticktext=feature_list),
         shapes=[
-    dict(
-        type="rect",
-        xref="paper", yref="paper",
-        x0=-0.01, y0=-0.0001, x1=1.01, y1=0.96,  # **Cover the entire plot area**
-        line=dict(color="black", width=0.8)
-    ),
-    dict(
-        type="line",
-        x0=0, x1=0,  # Vertical line at x=0
-        y0=min(y_positions) - 1, y1=max(y_positions) + 1,  # Extend slightly beyond feature range
-        xref="x", yref="y",
-        line=dict(color="black", width=0.3, dash="dash")  # Dashed line style
-    )
-]
+            dict(
+                type="rect",
+                xref="paper", yref="paper",
+                x0=-0.01, y0=-0.0001, x1=1.01, y1=0.96,  # **Cover the entire plot area**
+                line=dict(color="black", width=0.8)
+            ),
+            dict(
+                type="line",
+                x0=0, x1=0,  # Vertical line at x=0
+                y0=min(y_positions) - 1, y1=max(y_positions) + 1,  # Extend slightly beyond feature range
+                xref="x", yref="y",
+                line=dict(color="black", width=0.3, dash="dash")  # Dashed line style
+            )
+        ]
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
     # Add the chatbot to the page
     app_with_chatbot.show_chatbot_ui()
-
-
-# WORKING
