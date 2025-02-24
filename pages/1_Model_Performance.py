@@ -23,7 +23,11 @@ with left_col:
 
     # Dropdowns
     nlp_approach = st.selectbox("NLP Approach", ["LDA", "GPT", "COMBINED", "LIWC"])
-    nomothetic_idiographic = st.selectbox("Idiographic/Nomothetic", ["Idiographic", "Nomothetic"])
+    # For GPT, default to Nomothetic so that "na" (displayed as Negative Affect) has data
+    if nlp_approach == "GPT":
+        nomothetic_idiographic = st.selectbox("Idiographic/Nomothetic", ["Nomothetic", "Idiographic"])
+    else:
+        nomothetic_idiographic = st.selectbox("Idiographic/Nomothetic", ["Idiographic", "Nomothetic"])
 
     # Decide Nomothetic/Idiographic value
     nom_idio_value = "nomot" if nomothetic_idiographic == "Nomothetic" else "idiog"
@@ -42,8 +46,21 @@ with left_col:
             st.error("Column 'emotion_affect' not found in GPT file.")
             st.stop()
 
-        unique_emotions = df_gpt_all["emotion_affect"].unique().tolist()
-        outcome = st.selectbox("Outcome", unique_emotions)
+        # Convert emotion_affect to lowercase and standardize values
+        df_gpt_all["emotion_affect"] = df_gpt_all["emotion_affect"].str.lower()
+        df_gpt_all["emotion_affect"] = df_gpt_all["emotion_affect"].replace({"negative affect": "na"})
+        # Filter out rows where emotion_affect is not one of the allowed outcomes
+        allowed = ["angry", "na", "nervous", "sad"]
+        df_gpt_all = df_gpt_all[df_gpt_all["emotion_affect"].isin(allowed)]
+
+        # Define the fixed order with "na" first
+        ordered_emotions = ["na", "angry", "nervous", "sad"]
+        # Format function to display "na" as "Negative Affect" and others in title case
+        # def format_emotion(x):
+        #     return "Negative Affect" if x == "na" else x.title()
+
+        outcome = st.selectbox("Outcome", ordered_emotions)
+        # outcome = st.selectbox("Outcome", ordered_emotions, format_func=format_emotion)
 
         # Dynamically filter based on user selection
         if "nom_idio" in df_gpt_all.columns:
@@ -56,8 +73,6 @@ with left_col:
         if df_gpt_filtered.empty:
             st.warning("No data for the selected outcome and Nomothetic/Idiographic combination.")
             st.stop()
-
-        # st.success("Loaded data: **modelfit_gpt_all.csv** (GPT mode)")
 
     else:
         outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]).lower()
@@ -77,14 +92,12 @@ with left_col:
         if os.path.exists(file_path_en):
             df_en = pd.read_csv(file_path_en)
             df_en.columns = df_en.columns.str.lower()
-            # st.success(f"Loaded data: **{file_name_en}**")
         else:
             st.error(f"File not found: {file_name_en}")
 
         if os.path.exists(file_path_rf):
             df_rf = pd.read_csv(file_path_rf)
             df_rf.columns = df_rf.columns.str.lower()
-            # st.success(f"Loaded data: **{file_name_rf}**")
         else:
             st.error(f"File not found: {file_name_rf}")
 
@@ -96,8 +109,6 @@ with left_col:
         df_en["ml model"] = "Elastic Net (en)"
         df_rf["ml model"] = "Random Forest (rf)"
         df_combined = pd.concat([df_en, df_rf], ignore_index=True)
-
-        # Ensure filtering applies dynamically
         df_combined = df_combined[df_combined["r2"].notna()]
 
 # Display Graph in Right Column
