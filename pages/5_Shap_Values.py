@@ -22,8 +22,22 @@ with right_col:
     outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"])
     outcome = "na" if outcome.lower() == "negative affect" else outcome.lower()
 
-    ml_model = st.selectbox("Model", ["Elastic Net (EN)", "Random Forest (RF)"])
+    # Dropdown for selecting model
+    ml_model = st.selectbox("Model", ["Elastic Net (EN)", "Random Forest (RF)"], key="ml_model")
     ml_model_short = "en" if ml_model == "Elastic Net (EN)" else "rf"
+
+    # Check if the model selection has changed and update the default slider accordingly.
+    if "prev_ml_model_short" not in st.session_state:
+        st.session_state.prev_ml_model_short = ml_model_short
+    else:
+        if st.session_state.prev_ml_model_short != ml_model_short:
+            st.session_state.prev_ml_model_short = ml_model_short
+            # Update the symmetric slider default based on the model.
+            if ml_model_short == "rf":
+                st.session_state.symmetric_val = (-0.0005, 0.0005)
+            else:
+                st.session_state.symmetric_val = (-0.005, 0.005)
+            st.rerun()  # Rerun to apply the new default
 
     # File selection based on user inputs
     file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}.csv"
@@ -42,7 +56,6 @@ with right_col:
     # Ensure correct column names
     required_columns = ["participant", "variable", "importance", "nlp"]
     missing_columns = [col for col in required_columns if col not in df.columns]
-    
     if missing_columns:
         st.error(f"Missing required columns: {missing_columns}")
         st.stop()
@@ -68,9 +81,10 @@ with right_col:
     # Create a list of options with 0.0001 increments.
     options = [round(x, 4) for x in np.arange(-0.01, 0.01 + 0.0001, 0.0001)]
 
-    # Initialize symmetric slider state if not already set (default to (-0.005, 0.005))
+    # Initialize symmetric slider state if not already set.
     if 'symmetric_val' not in st.session_state:
-        st.session_state.symmetric_val = (-0.005, 0.005)
+        st.session_state.symmetric_val = (-0.005, 0.005)  # Default fallback
+
     if 'prev_val' not in st.session_state:
         st.session_state.prev_val = st.session_state.symmetric_val
 
@@ -101,13 +115,12 @@ with right_col:
     st.markdown(
         f"""
         <div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">
-            <b style="color: green;">✅ Data Included:</b> <br> Importance values < <b>{slider_value[0]:.4f}</b> and > <b>{slider_value[1]:.4f}</b><br>
+            <b style="color: green;">✅ Data Included:</b> <br> Importance values &lt; <b>{slider_value[0]:.4f}</b> and &gt; <b>{slider_value[1]:.4f}</b><br>
             <b style="color: red;">❌ Data Filtered Out:</b> <br> Importance values between <b>{slider_value[0]:.4f}</b> and <b>{slider_value[1]:.4f}</b>
         </div>
         """,
         unsafe_allow_html=True
     )
-
 
     # Use the positive threshold from the symmetric range as the filtering threshold
     min_importance_threshold = slider_value[1]
@@ -145,6 +158,16 @@ with left_col:
         "time": "purple",
         "lda": "orange",
     }
+
+    # --- Group & Sort y-axis by NLP Method ---
+    # Define the desired order: text length, LIWC, time, gpt, vader, lda.
+    nlp_order = {"text length": 1, "liwc": 2, "time": 3, "gpt": 4, "vader": 5, "lda": 6}
+    sorted_features = sorted(
+        heatmap_data.index,
+        key=lambda var: nlp_order.get(nlp_methods.get(var, "text length"), 999)
+    )
+    heatmap_data = heatmap_data.loc[sorted_features]
+    # --- End Sorting ---
 
     # Assign colors based on NLP method (default to black if unknown)
     feature_colors = [color_map.get(nlp_methods.get(var, "text length"), "black") for var in heatmap_data.index]
@@ -208,7 +231,7 @@ with left_col:
     st.markdown(
         f"""
         <div style="font-size: 12px; margin-top: 10px;">
-            <strong>NLP methods:</strong><br>
+            <strong>Legend:</strong><br>
             {legend_html}
         </div>
         """,
