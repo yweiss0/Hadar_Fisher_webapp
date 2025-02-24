@@ -162,23 +162,51 @@ with right_col:
     if not best_performance_df.empty:
         st.dataframe(best_performance_df, height=600, width=1200)
         
+        # Create columns for pie charts (2 or 3 based on include_both)
+        if include_both:
+            col1, col2, col3 = st.columns([1, 1, 1])  # Equal column widths
+        else:
+            col1, col2 = st.columns([1, 1])  # Equal column widths
+
+        # Define consistent chart dimensions
+        chart_width = 300  # Adjust as needed
+        chart_height = 300  # Ensure consistent height
+
         # Pie Chart 1: Nomothetic vs Idiographic
         nomot_idiog_counts = best_performance_df["Nomothetic/Idiographic"].value_counts()
         fig1 = px.pie(
             values=nomot_idiog_counts.values,
             names=nomot_idiog_counts.index,
-            title="Distribution of Nomothetic vs Idiographic"
+            title="Nomothetic vs Idiographic"
         )
-        st.plotly_chart(fig1, use_container_width=True)
+        fig1.update_traces(
+            domain=dict(x=[0.25, 0.75], y=[0.25, 0.75])  # Fix pie size in center
+        )
+        fig1.update_layout(
+            margin=dict(t=40, b=0, l=0, r=0),
+            title_x=0.3,  # Center title
+            legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")  # Bottom-centered legend
+        )
+        with col1:
+            st.plotly_chart(fig1, use_container_width=False, width=chart_width, height=chart_height)
 
         # Pie Chart 2: NLP Approach
         nlp_approach_counts = best_performance_df["NLP Approach"].value_counts()
         fig2 = px.pie(
             values=nlp_approach_counts.values,
             names=nlp_approach_counts.index,
-            title="Distribution of NLP Approaches"
+            title="NLP Approaches"
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        fig2.update_traces(
+            domain=dict(x=[0.25, 0.75], y=[0.25, 0.75])  # Fix pie size in center
+        )
+        fig2.update_layout(
+            margin=dict(t=40, b=0, l=0, r=0),
+            title_x=0.3,  # Center title
+            legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")  # Bottom-centered legend
+        )
+        with col2:
+            st.plotly_chart(fig2, use_container_width=False, width=chart_width, height=chart_height)
 
         # Pie Chart 3: ML Model (only if include_both is selected)
         if include_both:
@@ -186,9 +214,18 @@ with right_col:
             fig3 = px.pie(
                 values=ml_model_counts.values,
                 names=ml_model_counts.index,
-                title="Distribution of ML Models"
+                title="ML Models"
             )
-            st.plotly_chart(fig3, use_container_width=True)
+            fig3.update_traces(
+                domain=dict(x=[0.25, 0.75], y=[0.25, 0.75])  # Fix pie size in center
+            )
+            fig3.update_layout(
+                margin=dict(t=40, b=0, l=0, r=0),
+                title_x=0.3,  # Center title
+                legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")  # Bottom-centered legend
+            )
+            with col3:
+                st.plotly_chart(fig3, use_container_width=False, width=chart_width, height=chart_height)
     else:
         st.warning("No data available for the selected criteria.")
 
