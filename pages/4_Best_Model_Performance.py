@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import plotly.express as px
 import app_with_chatbot
 
 # File Path
@@ -160,6 +161,34 @@ with right_col:
     st.write("")
     if not best_performance_df.empty:
         st.dataframe(best_performance_df, height=600, width=1200)
+        
+        # Pie Chart 1: Nomothetic vs Idiographic
+        nomot_idiog_counts = best_performance_df["Nomothetic/Idiographic"].value_counts()
+        fig1 = px.pie(
+            values=nomot_idiog_counts.values,
+            names=nomot_idiog_counts.index,
+            title="Distribution of Nomothetic vs Idiographic"
+        )
+        st.plotly_chart(fig1, use_container_width=True)
+
+        # Pie Chart 2: NLP Approach
+        nlp_approach_counts = best_performance_df["NLP Approach"].value_counts()
+        fig2 = px.pie(
+            values=nlp_approach_counts.values,
+            names=nlp_approach_counts.index,
+            title="Distribution of NLP Approaches"
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+
+        # Pie Chart 3: ML Model (only if include_both is selected)
+        if include_both:
+            ml_model_counts = best_performance_df["ML Model"].value_counts()
+            fig3 = px.pie(
+                values=ml_model_counts.values,
+                names=ml_model_counts.index,
+                title="Distribution of ML Models"
+            )
+            st.plotly_chart(fig3, use_container_width=True)
     else:
         st.warning("No data available for the selected criteria.")
 
