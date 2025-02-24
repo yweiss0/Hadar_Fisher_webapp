@@ -180,11 +180,12 @@ with right_col:
             title="Nomothetic vs Idiographic"
         )
         fig1.update_traces(
-            domain=dict(x=[0.25, 0.75], y=[0.25, 0.75])  # Fix pie size in center
+            domain=dict(x=[0.15, 0.85], y=[0.15, 0.85])  # Pie size
         )
         fig1.update_layout(
             margin=dict(t=40, b=0, l=0, r=0),
             title_x=0.3,  # Center title
+            title_font_size=14,  # Smaller font size for title
             legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")  # Bottom-centered legend
         )
         with col1:
@@ -192,17 +193,19 @@ with right_col:
 
         # Pie Chart 2: NLP Approach
         nlp_approach_counts = best_performance_df["NLP Approach"].value_counts()
+        nlp_approach_labels = [label.replace("comb", "combine") for label in nlp_approach_counts.index]
         fig2 = px.pie(
             values=nlp_approach_counts.values,
-            names=nlp_approach_counts.index,
+            names=nlp_approach_labels,
             title="NLP Approaches"
         )
         fig2.update_traces(
-            domain=dict(x=[0.25, 0.75], y=[0.25, 0.75])  # Fix pie size in center
+            domain=dict(x=[0.15, 0.85], y=[0.15, 0.85])  # Pie size
         )
         fig2.update_layout(
             margin=dict(t=40, b=0, l=0, r=0),
             title_x=0.3,  # Center title
+            title_font_size=14,  # Smaller font size for title
             legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")  # Bottom-centered legend
         )
         with col2:
@@ -217,11 +220,12 @@ with right_col:
                 title="ML Models"
             )
             fig3.update_traces(
-                domain=dict(x=[0.25, 0.75], y=[0.25, 0.75])  # Fix pie size in center
+                domain=dict(x=[0.15, 0.85], y=[0.15, 0.85])  # Pie size
             )
             fig3.update_layout(
                 margin=dict(t=40, b=0, l=0, r=0),
                 title_x=0.3,  # Center title
+                title_font_size=14,  # Smaller font size for title
                 legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")  # Bottom-centered legend
             )
             with col3:
