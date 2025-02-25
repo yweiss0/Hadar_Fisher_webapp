@@ -7,7 +7,7 @@ import app_with_chatbot
 DATA_DIR = "data/files_tab_1_2/"
 # DATA_DIR = "C:/Projects/personal_projects2/Hadar_Fisher_Website/data/files_tab_1_2/"
 
-st.set_page_config(page_title="Data Table View", layout="wide")
+st.set_page_config(page_title="Data Table View", page_icon="📊", layout="wide")
 
 st.title("📋 Model performance per participant")
 

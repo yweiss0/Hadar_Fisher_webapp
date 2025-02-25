@@ -7,7 +7,7 @@ import app_with_chatbot
 # File Path
 DATA_DIR = "data/files_tab_1_2/"
 
-st.set_page_config(page_title="Best Model Performance per Participant", layout="wide")
+st.set_page_config(page_title="Best Model Performance per Participant", page_icon="📊", layout="wide")
 st.title("🥇 Best Model Performance")
 
 st.write("<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True)

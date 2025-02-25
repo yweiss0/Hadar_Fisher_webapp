@@ -6,7 +6,7 @@ import plotly.express as px
 # File Path
 DATA_DIR = "data/files_tab_4/"
 
-st.set_page_config(page_title="Feature Importance Visualization", layout="wide")
+st.set_page_config(page_title="Feature Importance Visualization", page_icon="📊", layout="wide")
 st.title("💡 Common Top Predictive Features")
 
 # Layout: Sidebar (1/4 width) for controls, Main area (3.5/4 width) for graphs

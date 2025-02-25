@@ -8,7 +8,7 @@ import numpy as np
 # File Path
 DATA_DIR = "data/files_tab_4/"
 
-st.set_page_config(page_title="Feature Importance Heatmap", layout="wide")
+st.set_page_config(page_title="Feature Importance Heatmap", page_icon="📊", layout="wide")
 
 st.title("📉 feature importance Heatmap (SHAP Values)")
 

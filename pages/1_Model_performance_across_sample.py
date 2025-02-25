@@ -8,7 +8,7 @@ import app_with_chatbot
 # File Path
 DATA_DIR = "data/files_tab_1_2/"
 
-st.set_page_config(page_title="Model Performance Analysis", layout="wide")
+st.set_page_config(page_title="Model Performance Analysis", page_icon="📊", layout="wide")
 
 st.title("📊 Model Performance Analysis")
 

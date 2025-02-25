@@ -9,7 +9,7 @@ import numpy as np  # Needed for dynamic range options
 DATA_DIR = "data/files_tab_4/"
 METRICS_DIR = "data/files_tab_1_2/"  # Directory for R² and RMSE values
 
-st.set_page_config(page_title="Feature Importance Visualization", layout="wide")
+st.set_page_config(page_title="Feature Importance Visualization", page_icon="📊", layout="wide")
 
 st.title("📉 Feature importance per participant (SHAP Value)")
 
