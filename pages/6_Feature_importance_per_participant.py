@@ -40,8 +40,23 @@ with right_col:
                 st.session_state.symmetric_val = (-0.005, 0.005)
             st.rerun()  # Rerun to apply the new default
 
+    # Checkbox for ABS values
+    use_abs = st.checkbox("Use ABS values only", value=False)
+    if use_abs:
+        DATA_DIR = "data/files_tab_7/"
+        st.markdown(
+            '<div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">All values are in ABS.</div>',
+            unsafe_allow_html=True
+        )
+    
+    # Checkbox for including 'Time' variable (default checked)
+    include_time = st.checkbox("Include the variable 'Time'", value=True)
+
     # File selection based on user inputs
-    file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}.csv"
+    if use_abs:
+        file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}_abs.csv"
+    else:
+        file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}.csv"
     file_path = os.path.join(DATA_DIR, file_name)
 
     if not os.path.exists(file_path):
@@ -50,14 +65,11 @@ with right_col:
 
     # Load data with case-insensitive column handling
     df = pd.read_csv(file_path, encoding="ISO-8859-1")
-
-    # Convert all column names to lowercase for case-insensitive handling
     df.columns = df.columns.str.lower()
 
     # Ensure correct column names exist
     required_columns = ["participant", "variable", "importance", "nlp"]
     missing_columns = [col for col in required_columns if col not in df.columns]
-    
     if missing_columns:
         st.error(f"Missing required columns: {missing_columns}")
         st.stop()
@@ -66,16 +78,15 @@ with right_col:
     df["nlp"] = df["nlp"].str.lower().fillna("text feature")
     df["participant"] = df["participant"].astype(str).str.lower()  # Case-insensitive participants
     df["variable"] = df["variable"].astype(str)  # Ensure variable (feature) names are strings
-
-    # Ensure numeric conversion
     df["importance"] = pd.to_numeric(df["importance"], errors="coerce")
-
-    # Remove NaN importance values
     df.dropna(subset=["importance"], inplace=True)
+
+    # If not including 'Time', remove rows where variable equals "time" (case-insensitive)
+    if not include_time:
+        df = df[~df["variable"].str.lower().eq("time")]
 
     # Get unique participants (keep original case for selection)
     participants = sorted(df["participant"].unique().tolist())
-
     # Dropdown for selecting a single participant
     selected_participant = st.selectbox("Select a Participant", participants)
 
@@ -88,46 +99,30 @@ with right_col:
 
     if os.path.exists(metrics_file_path):
         df_metrics = pd.read_csv(metrics_file_path, encoding="ISO-8859-1")
-        
-        # Convert all column names to lowercase
         df_metrics.columns = df_metrics.columns.str.lower()
-
-        # Ensure it has required columns
         required_metrics_columns = ["participant", "r2", "rmse"]
         missing_metrics_columns = [col for col in required_metrics_columns if col not in df_metrics.columns]
-
         if not missing_metrics_columns:
-            # Convert participant column to lowercase for case-insensitive matching
             df_metrics["participant"] = df_metrics["participant"].astype(str).str.lower()
-            
-            # Find the participant's row
             participant_metrics = df_metrics[df_metrics["participant"] == selected_participant]
-
             if not participant_metrics.empty:
                 r2_value = participant_metrics["r2"].values[0]
                 rmse_value = participant_metrics["rmse"].values[0]
 
     # --- Dynamic Symmetric Range Selector Component ---
-    # Create a list of options with 0.0001 increments.
     options = [round(x, 4) for x in np.arange(-0.01, 0.01 + 0.0001, 0.0001)]
-
-    # Initialize symmetric slider state if not already set (default to (0.0000, 0.0000))
     if 'symmetric_val' not in st.session_state:
         st.session_state.symmetric_val = (-0.0015, 0.0015)
     if 'prev_val' not in st.session_state:
         st.session_state.prev_val = st.session_state.symmetric_val
 
     def update_symmetric():
-        # Compare current and previous values to decide which handle was moved.
         current = st.session_state.symmetric_val
         prev = st.session_state.prev_val
         lower, upper = current
         prev_lower, prev_upper = prev
-
-        # If the lower handle changed, update the upper handle to its negative.
         if lower != prev_lower:
             st.session_state.symmetric_val = (lower, -lower)
-        # If the upper handle changed, update the lower handle to its negative.
         elif upper != prev_upper:
             st.session_state.symmetric_val = (-upper, upper)
         st.session_state.prev_val = st.session_state.symmetric_val
@@ -140,7 +135,6 @@ with right_col:
         on_change=update_symmetric,
     )
 
-    # Display messages with clear formatting and smaller font
     st.markdown(
         f"""
         <div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">
@@ -151,7 +145,6 @@ with right_col:
         unsafe_allow_html=True
     )
 
-    # Use the positive threshold from the symmetric range as the filtering threshold
     min_importance_threshold = slider_value[1]
     # --- End Dynamic Component ---
 
@@ -163,7 +156,6 @@ with left_col:
     df_filtered = df_filtered[
         (df_filtered["importance"] <= -abs(min_importance_threshold)) | (df_filtered["importance"] >= abs(min_importance_threshold))
     ]
-
     if df_filtered.empty:
         st.warning("No features meet the selected importance threshold.")
         st.stop()
@@ -171,19 +163,17 @@ with left_col:
     # Define sorting order for NLP methods
     nlp_order = {"text leangth": 1, "gpt": 2, "vader": 3, "liwc": 4, "lda": 5, "time": 6}
     df_filtered["nlp_order"] = df_filtered["nlp"].map(nlp_order)
-
-    # Sort features by NLP method first, then by importance
     df_sorted = df_filtered.sort_values(by=["nlp_order", "importance"], ascending=[True, False])
 
-    # **Ensure Equal Spacing for Features**
+    # Ensure Equal Spacing for Features
     feature_list = df_sorted["variable"].unique().tolist()
-    y_positions = list(range(len(feature_list)))  # Evenly spaced Y values
+    y_positions = list(range(len(feature_list)))
     feature_y_map = {feature: y for feature, y in zip(feature_list, y_positions)}
-    df_sorted["y_position"] = df_sorted["variable"].map(feature_y_map)  # Assign equal spacing
+    df_sorted["y_position"] = df_sorted["variable"].map(feature_y_map)
 
-    # **Dynamically adjust graph height**
-    num_features = len(feature_list)  # Number of features after filtering
-    height_per_feature = 50  # Pixels per feature (adjustable)
+    # Dynamically adjust graph height
+    num_features = len(feature_list)
+    height_per_feature = 50
     min_height = 350
     max_height = 1800
     dynamic_height = min(max_height, max(min_height, num_features * height_per_feature))
@@ -197,61 +187,51 @@ with left_col:
         "time": "purple",
         "lda": "orange",
     }
-
-    # Assign colors dynamically, ensuring no NaN values
     df_sorted["color"] = df_sorted["nlp"].map(color_map).fillna("black")
 
     # Create SHAP summary scatter plot
     fig = go.Figure()
-
-    # Add vertical lines from 0 to the importance value (with tooltip)
     for nlp_method, color in color_map.items():
         df_subset = df_sorted[df_sorted["nlp"] == nlp_method]
         for _, row in df_subset.iterrows():
-            line_width = 3 if row["nlp"] != "text leangth" else 2  # Ensure black lines are always visible
+            line_width = 3 if row["nlp"] != "text leangth" else 2
             fig.add_trace(go.Scatter(
-                x=[0, row["importance"]],  # Line from 0 to importance value
-                y=[row["y_position"], row["y_position"]],  # Keep the same y-value
+                x=[0, row["importance"]],
+                y=[row["y_position"], row["y_position"]],
                 mode="lines",
                 line=dict(color=color, width=line_width),
                 hoverinfo="text",
                 hovertext=f"Feature: {row['variable']}<br>Importance: {row['importance']:.4f}",
                 showlegend=False
             ))
-
-    # **Fix: Ensure all NLP types appear in legend**
     for nlp_method, color in color_map.items():
         fig.add_trace(go.Scatter(
-            x=[None],  # Dummy invisible point
-            y=[None],  # Dummy invisible point
+            x=[None],
+            y=[None],
             mode="markers",
             marker=dict(size=10, color=color),
-            name=nlp_method.upper()  # Add NLP method name to legend
+            name=nlp_method.upper()
         ))
-
-    # Add scatter plot dots for feature importance values (with tooltip)
     fig.add_trace(go.Scatter(
         x=df_sorted["importance"],
         y=df_sorted["y_position"],
         mode="markers",
         marker=dict(
             size=17,
-            color=df_sorted["color"],  # Coloring by NLP method
+            color=df_sorted["color"],
         ),
         hoverinfo="text",
         hovertext=[f"Feature: {feat}<br>Importance: {imp:.4f}" for feat, imp in zip(df_sorted["variable"], df_sorted["importance"])],
         name="Feature Importance",
-        showlegend=False  # Ensure dots appear in legend but not in legend box
+        showlegend=False
     ))
-
-    # **Fix alignment & adjust border size**
     fig.update_layout(
         title={
             'text': f"R²: {r2_value:.4f}  |  RMSE: {rmse_value:.4f}",
-            'x': 0.5,  # x-position of the title (0-1)
-            'y': 0.97,  # y-position of the title (0-1)
-            'xanchor': 'center',  # horizontal alignment ('left', 'center', 'right')
-            'yanchor': 'top'  # vertical alignment ('top', 'middle', 'bottom')
+            'x': 0.5,
+            'y': 0.97,
+            'xanchor': 'center',
+            'yanchor': 'top'
         },
         margin=dict(l=10, r=20, t=20, b=10),
         xaxis_title="SHAP Value",
@@ -266,20 +246,17 @@ with left_col:
             dict(
                 type="rect",
                 xref="paper", yref="paper",
-                x0=-0.01, y0=-0.0001, x1=1.01, y1=0.96,  # **Cover the entire plot area**
+                x0=-0.01, y0=-0.0001, x1=1.01, y1=0.96,
                 line=dict(color="black", width=0.8)
             ),
             dict(
                 type="line",
-                x0=0, x1=0,  # Vertical line at x=0
-                y0=min(y_positions) - 1, y1=max(y_positions) + 1,  # Extend slightly beyond feature range
+                x0=0, x1=0,
+                y0=min(y_positions) - 1, y1=max(y_positions) + 1,
                 xref="x", yref="y",
-                line=dict(color="black", width=0.3, dash="dash")  # Dashed line style
+                line=dict(color="black", width=0.3, dash="dash")
             )
         ]
     )
-
     st.plotly_chart(fig, use_container_width=True)
-
-    # Add the chatbot to the page
     app_with_chatbot.show_chatbot_ui()

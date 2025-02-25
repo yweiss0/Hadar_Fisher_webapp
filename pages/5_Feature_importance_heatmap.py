@@ -39,8 +39,20 @@ with right_col:
                 st.session_state.symmetric_val = (-0.005, 0.005)
             st.rerun()  # Rerun to apply the new default
 
+    # Checkbox for ABS values
+    use_abs = st.checkbox("Use ABS values only", value=False)
+    if use_abs:
+        DATA_DIR = "data/files_tab_7/"
+        st.markdown(
+            '<div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">All values are in ABS.</div>',
+            unsafe_allow_html=True
+        )
+
     # File selection based on user inputs
-    file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}.csv"
+    if use_abs:
+        file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}_abs.csv"
+    else:
+        file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}.csv"
     file_path = os.path.join(DATA_DIR, file_name)
 
     if not os.path.exists(file_path):
@@ -125,7 +137,6 @@ with right_col:
     # Use the positive threshold from the symmetric range as the filtering threshold
     min_importance_threshold = slider_value[1]
     # --- End Dynamic Component ---
-
 
 with left_col:
     # Filter data based on selected participants

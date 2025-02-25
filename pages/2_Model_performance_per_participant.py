@@ -21,7 +21,7 @@ with left_col:
     st.write("**File Selection:**")
 
     # Dropdowns
-    nlp_approach = st.selectbox("NLP Approach", ["LDA", "GPT", "COMBINED", "LIWC"])
+    nlp_approach = st.selectbox("NLP Approach", ["COMBINED", "LDA", "GPT", "LIWC"])
     nomothetic_idiographic = st.selectbox("Idiographic/Nomothetic", ["Idiographic", "Nomothetic"])
     ml_model = st.selectbox("ML Model", ["Elastic Net (en)", "Random Forest (rf)"])
 

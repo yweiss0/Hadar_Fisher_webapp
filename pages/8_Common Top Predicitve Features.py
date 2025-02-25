@@ -24,6 +24,15 @@ with left_col:
     num_variables = st.slider("Number of Variables in Figure", 5, 20, 10)
     shap_threshold = st.slider("SHAP Value Threshold", 0.001, 0.05, 0.01, step=0.001)
     
+    # Checkbox for ABS values
+    use_abs = st.checkbox("Use ABS values only", value=False)
+    if use_abs:
+        DATA_DIR = "data/files_tab_7/"
+        st.markdown(
+            '<div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">All values are in ABS.</div>',
+            unsafe_allow_html=True
+        )
+    
     # Load and filter data
     csv_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv") and ml_model_short in f]
     
@@ -43,7 +52,10 @@ color_map = {
 # Create plots for each emotion
 figs = []
 for selected_emotion in emotions:
-    file_name = f"Featureimportance_{ml_model_short}_comb_{selected_emotion}.csv"
+    if use_abs:
+        file_name = f"Featureimportance_{ml_model_short}_comb_{selected_emotion}_abs.csv"
+    else:
+        file_name = f"Featureimportance_{ml_model_short}_comb_{selected_emotion}.csv"
     file_path = os.path.join(DATA_DIR, file_name)
     
     if not os.path.exists(file_path):
