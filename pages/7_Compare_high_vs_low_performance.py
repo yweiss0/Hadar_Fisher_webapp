@@ -21,6 +21,9 @@ with left_col:
     outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]).lower()
     outcome = "na" if outcome == "negative affect" else outcome
     ml_model_short = "en" if ml_model == "Elastic Net (en)" else "rf"
+    
+    # Checkbox for including 'Time' variable (default: checked)
+    include_time = st.checkbox("Include the variable 'Time'", value=True)
 
     # Load performance data
     perf_file = os.path.join(DATA_DIR_1, f"comb_{ml_model_short}_{outcome}_idiog.csv")
@@ -129,6 +132,10 @@ with left_col:
     if "participant" not in feature_df.columns or "variable" not in feature_df.columns:
         st.error("Required columns ('participant' or 'variable') are missing in the data.")
         st.stop()
+
+    # If not including 'Time', filter out rows where variable is 'time' (case-insensitive)
+    if not include_time:
+        feature_df = feature_df[~feature_df["variable"].str.lower().eq("time")]
 
     # If available, process NLP information for coloring y-axis labels
     if "nlp" in feature_df.columns:
