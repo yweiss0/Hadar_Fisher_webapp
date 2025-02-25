@@ -6,7 +6,7 @@ import app_with_chatbot
 
 # File Paths
 DATA_DIR_1 = "data/files_tab_1_2/"
-DATA_DIR_4 = "data/files_tab_4/"
+DATA_DIR_4 = "data/files_tab_7/"
 
 st.set_page_config(page_title="Feature Importance Analysis", layout="wide")
 st.title("🔬 Feature Importance Analysis")
@@ -117,7 +117,7 @@ with left_col:
     lowest_r2 = perf_df.nsmallest(num_of_participants, "r2")["participant"].tolist()
 
     # Load feature importance data
-    feature_file = os.path.join(DATA_DIR_4, f"Featureimportance_{ml_model_short}_comb_{outcome}.csv")
+    feature_file = os.path.join(DATA_DIR_4, f"Featureimportance_{ml_model_short}_comb_{outcome}_abs.csv")
     if os.path.exists(feature_file):
         feature_df = pd.read_csv(feature_file, encoding="ISO-8859-1")
         feature_df.columns = feature_df.columns.str.lower().str.strip()
