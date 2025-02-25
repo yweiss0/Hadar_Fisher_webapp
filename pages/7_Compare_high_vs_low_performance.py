@@ -8,7 +8,7 @@ import app_with_chatbot
 DATA_DIR_1 = "data/files_tab_1_2/"
 DATA_DIR_4 = "data/files_tab_7/"
 
-st.set_page_config(page_title="Feature Importance Analysis", layout="wide")
+st.set_page_config(page_title="Feature Importance Analysis", page_icon="🔬", layout="wide")
 st.title("🔬 Feature Importance Analysis")
 
 col_space1, left_col, col_space2, right_col, col_space3 = st.columns([1, 2, 1, 6, 1])
