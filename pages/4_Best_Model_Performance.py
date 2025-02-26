@@ -172,61 +172,80 @@ with right_col:
         chart_width = 300  # Adjust as needed
         chart_height = 300  # Ensure consistent height
 
-        # Pie Chart 1: Nomothetic vs Idiographic
+        # Pie Chart 1: Nomothetic vs Idiographic with specific colors
         nomot_idiog_counts = best_performance_df["Nomothetic/Idiographic"].value_counts()
         fig1 = px.pie(
             values=nomot_idiog_counts.values,
             names=nomot_idiog_counts.index,
-            title="Nomothetic vs Idiographic"
+            title="Nomothetic vs Idiographic",
+            color=nomot_idiog_counts.index,
+            color_discrete_map={
+                "Nomothetic": "lightblue",
+                "Idiographic": "darkblue",
+                "N/A (LLM Ratings)": "red"
+            }
         )
         fig1.update_traces(
-            domain=dict(x=[0.15, 0.85], y=[0.15, 0.85])  # Pie size
+            domain=dict(x=[0.15, 0.85], y=[0.15, 0.85])
         )
         fig1.update_layout(
             margin=dict(t=40, b=0, l=0, r=0),
-            title_x=0.3,  # Center title
-            title_font_size=14,  # Smaller font size for title
-            legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")  # Bottom-centered legend
+            title_x=0.3,
+            title_font_size=14,
+            legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")
         )
         with col1:
             st.plotly_chart(fig1, use_container_width=False, width=chart_width, height=chart_height)
 
-        # Pie Chart 2: NLP Approach
+        # Pie Chart 2: NLP Approach with specific colors
         nlp_approach_counts = best_performance_df["NLP Approach"].value_counts()
         nlp_approach_labels = [label.replace("comb", "All text features combined") for label in nlp_approach_counts.index]
         fig2 = px.pie(
             values=nlp_approach_counts.values,
             names=nlp_approach_labels,
-            title="NLP Approaches"
+            title="NLP Approaches",
+            color=nlp_approach_labels,
+            color_discrete_map={
+                "All text features combined": "darkblue",
+                "LDA": "lightblue",
+                "GPT": "red",
+                "LIWC": "purple"
+            }
         )
         fig2.update_traces(
-            domain=dict(x=[0.15, 0.85], y=[0.15, 0.85])  # Pie size
+            domain=dict(x=[0.15, 0.85], y=[0.15, 0.85])
         )
         fig2.update_layout(
             margin=dict(t=40, b=0, l=0, r=0),
-            title_x=0.3,  # Center title
-            title_font_size=14,  # Smaller font size for title
-            legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")  # Bottom-centered legend
+            title_x=0.3,
+            title_font_size=14,
+            legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")
         )
         with col2:
             st.plotly_chart(fig2, use_container_width=False, width=chart_width, height=chart_height)
 
-        # Pie Chart 3: ML Model (only if include_both is selected)
+        # Pie Chart 3: ML Models with specific colors (only if include_both is selected)
         if include_both:
             ml_model_counts = best_performance_df["ML Model"].value_counts()
             fig3 = px.pie(
                 values=ml_model_counts.values,
                 names=ml_model_counts.index,
-                title="ML Models"
+                title="ML Models",
+                color=ml_model_counts.index,
+                color_discrete_map={
+                    "Elastic Net": "darkblue",
+                    "Random Forest": "lightblue",
+                    "N/A (GPT)": "red"
+                }
             )
             fig3.update_traces(
-                domain=dict(x=[0.15, 0.85], y=[0.15, 0.85])  # Pie size
+                domain=dict(x=[0.15, 0.85], y=[0.15, 0.85])
             )
             fig3.update_layout(
                 margin=dict(t=40, b=0, l=0, r=0),
-                title_x=0.3,  # Center title
-                title_font_size=14,  # Smaller font size for title
-                legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")  # Bottom-centered legend
+                title_x=0.3,
+                title_font_size=14,
+                legend=dict(orientation="v", y=-0.1, x=0.5, xanchor="center")
             )
             with col3:
                 st.plotly_chart(fig3, use_container_width=False, width=chart_width, height=chart_height)
