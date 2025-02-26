@@ -94,6 +94,7 @@ color_map = {
     "text length": "black",
     "time": "purple",
     "lda": "orange",
+    "text feature": "brown"
 }
 
 # Create plots for each emotion

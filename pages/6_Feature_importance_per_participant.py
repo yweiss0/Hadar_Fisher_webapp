@@ -209,7 +209,7 @@ with left_col:
         st.stop()
 
     # Define sorting order for NLP methods
-    nlp_order = {"text leangth": 1, "gpt": 2, "vader": 3, "liwc": 4, "lda": 5, "time": 6}
+    nlp_order = {"text leangth": 1, "gpt": 2, "vader": 3, "liwc": 4, "lda": 5, "time": 6, "text feature": 7}
     df_filtered["nlp_order"] = df_filtered["nlp"].map(nlp_order)
     df_sorted = df_filtered.sort_values(by=["nlp_order", "importance"], ascending=[True, False])
 
@@ -234,6 +234,7 @@ with left_col:
         "text leangth": "black",
         "time": "purple",
         "lda": "orange",
+        "text feature": "brown"
     }
     df_sorted["color"] = df_sorted["nlp"].map(color_map).fillna("black")
 

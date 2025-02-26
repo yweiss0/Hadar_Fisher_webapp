@@ -92,7 +92,6 @@ with right_col:
 )
 
     
-    #work
 
     if use_abs:
         DATA_DIR = "data/files_tab_7/"
@@ -223,11 +222,13 @@ with left_col:
         "text length": "black",
         "time": "purple",
         "lda": "orange",
+        "text feature": "brown",
+        
     }
 
     # --- Group & Sort y-axis by NLP Method ---
     # Define the desired order: text length, LIWC, time, gpt, vader, lda.
-    nlp_order = {"text length": 1, "liwc": 2, "time": 3, "gpt": 4, "vader": 5, "lda": 6}
+    nlp_order = {"text length": 1, "liwc": 2, "time": 3, "gpt": 4, "vader": 5, "lda": 6, "text feature": 7}
     sorted_features = sorted(
         heatmap_data.index,
         key=lambda var: nlp_order.get(nlp_methods.get(var, "text length"), 999)

@@ -151,6 +151,7 @@ with left_col:
         "text length": "black",
         "time": "purple",
         "lda": "orange",
+        "text feature": "brown"
     }
 
     # Keep only selected participants
