@@ -25,13 +25,60 @@ with left_col:
     shap_threshold = st.slider("SHAP Value Threshold", 0.001, 0.05, 0.01, step=0.001)
     
     # Checkbox for ABS values
-    use_abs = st.checkbox("Use ABS values only", value=False)
+    use_abs = st.checkbox("Use absolute values", value=False)
+    #tooltip for ABS values
+
+    st.markdown(
+    """
+    <style>
+        .tooltip-container {
+            display: inline-block;
+            position: relative;
+        }
+        .tooltip-container .tooltip-text {
+            visibility: hidden;
+            width: 350px;
+            background-color: #555;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -175px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 14px;
+        }
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+    <div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">
+        <b>General Rule:</b> Choose absolute values for feature ranking and non-absolute values for understanding directional effects.
+        <span class="tooltip-container" style="margin-left: 10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
+                <g fill="none">
+                    <path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/>
+                    <path fill="currentColor" d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12S6.477 2 12 2m0 2a8 8 0 1 0 0 16a8 8 0 0 0 0-16m-.01 6c.558 0 1.01.452 1.01 1.01v5.124A1 1 0 0 1 12.5 18h-.49A1.01 1.01 0 0 1 11 16.99V12a1 1 0 1 1 0-2zM12 7a1 1 0 1 1 0 2a1 1 0 0 1 0-2"/>
+                </g>
+            </svg>
+            <span class="tooltip-text">
+                <b>Absolute SHAP Values:</b> Show overall importance of each feature in predicting negative affect, regardless of whether the feature's impact increases or decreases negative affect. Use this to understand which features are most influential in the model's predictions, regardless of direction. <br>
+                <b>Non-Absolute SHAP Values:</b> Show whether a feature predicts higher or lower negative affect. Use this if you need to interpret how each feature affects the predicted outcome (increasing or decreasing negative affect).
+            </span>
+        </span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+    
     if use_abs:
         DATA_DIR = "data/files_tab_7/"
-        st.markdown(
-            '<div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">All values are in ABS.</div>',
-            unsafe_allow_html=True
-        )
+        
     
     # Load and filter data
     csv_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv") and ml_model_short in f]
