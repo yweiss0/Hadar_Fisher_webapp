@@ -3,17 +3,21 @@ import pandas as pd
 import os
 import plotly.express as px
 import plotly.graph_objects as go
-import app_with_chatbot
+import new_app_chatbot
 
 # File Path
 DATA_DIR = "data/files_tab_1_2/"
 
-st.set_page_config(page_title="Model Performance Analysis", page_icon="📊", layout="wide")
+st.set_page_config(
+    page_title="Model Performance Analysis", page_icon="📊", layout="wide"
+)
 
 st.title("📊 Model Performance Analysis")
 
 # Center the entire layout
-st.write("<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True)
+st.write(
+    "<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True
+)
 
 # Create adjusted layout (Left: 1/4, Right: 3/4)
 col_space1, left_col, col_space2, right_col, col_space3 = st.columns([1, 2, 1, 6, 1])
@@ -25,9 +29,13 @@ with left_col:
     nlp_approach = st.selectbox("NLP Approach", ["LDA", "GPT", "COMBINED", "LIWC"])
     # For GPT, default to Nomothetic so that "na" (displayed as Negative Affect) has data
     if nlp_approach == "GPT":
-        nomothetic_idiographic = st.selectbox("Idiographic/Nomothetic", ["Nomothetic", "Idiographic"])
+        nomothetic_idiographic = st.selectbox(
+            "Idiographic/Nomothetic", ["Nomothetic", "Idiographic"]
+        )
     else:
-        nomothetic_idiographic = st.selectbox("Idiographic/Nomothetic", ["Idiographic", "Nomothetic"])
+        nomothetic_idiographic = st.selectbox(
+            "Idiographic/Nomothetic", ["Idiographic", "Nomothetic"]
+        )
 
     # Decide Nomothetic/Idiographic value
     nom_idio_value = "nomot" if nomothetic_idiographic == "Nomothetic" else "idiog"
@@ -48,7 +56,9 @@ with left_col:
 
         # Convert emotion_affect to lowercase and standardize values
         df_gpt_all["emotion_affect"] = df_gpt_all["emotion_affect"].str.lower()
-        df_gpt_all["emotion_affect"] = df_gpt_all["emotion_affect"].replace({"negative affect": "na"})
+        df_gpt_all["emotion_affect"] = df_gpt_all["emotion_affect"].replace(
+            {"negative affect": "na"}
+        )
         # Filter out rows where emotion_affect is not one of the allowed outcomes
         allowed = ["angry", "na", "nervous", "sad"]
         df_gpt_all = df_gpt_all[df_gpt_all["emotion_affect"].isin(allowed)]
@@ -65,17 +75,22 @@ with left_col:
         # Dynamically filter based on user selection
         if "nom_idio" in df_gpt_all.columns:
             df_gpt_filtered = df_gpt_all[
-                (df_gpt_all["emotion_affect"] == outcome) & (df_gpt_all["nom_idio"] == nom_idio_value)
+                (df_gpt_all["emotion_affect"] == outcome)
+                & (df_gpt_all["nom_idio"] == nom_idio_value)
             ]
         else:
             df_gpt_filtered = df_gpt_all[df_gpt_all["emotion_affect"] == outcome]
 
         if df_gpt_filtered.empty:
-            st.warning("No data for the selected outcome and Nomothetic/Idiographic combination.")
+            st.warning(
+                "No data for the selected outcome and Nomothetic/Idiographic combination."
+            )
             st.stop()
 
     else:
-        outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]).lower()
+        outcome = st.selectbox(
+            "Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]
+        ).lower()
         outcome = "na" if outcome == "negative affect" else outcome
         nlp_approach_value = "comb" if nlp_approach == "COMBINED" else nlp_approach
 
@@ -131,7 +146,7 @@ with right_col:
             title="R² Values for GPT Model",
             xaxis_title="ML Model",
             yaxis_title="R²",
-            template="plotly_white"
+            template="plotly_white",
         )
 
     else:
@@ -143,14 +158,17 @@ with right_col:
             box=True,
             points="all",
             color="ml model",
-            color_discrete_map={"Elastic Net (en)": "red", "Random Forest (rf)": "blue"},
+            color_discrete_map={
+                "Elastic Net (en)": "red",
+                "Random Forest (rf)": "blue",
+            },
         )
 
         fig.update_layout(
             title="R² Values for Machine Learning Models",
             xaxis_title="ML Model",
             yaxis_title="R²",
-            template="plotly_white"
+            template="plotly_white",
         )
 
     st.plotly_chart(fig)
@@ -160,21 +178,27 @@ with right_col:
     if nlp_approach == "GPT":
         M_SD = f"{df_gpt_filtered['r2'].mean():.2f} ({df_gpt_filtered['r2'].std():.2f})"
         N = df_gpt_filtered.shape[0]
-        Range = f"({df_gpt_filtered['r2'].min():.2f}, {df_gpt_filtered['r2'].max():.2f})"
+        Range = (
+            f"({df_gpt_filtered['r2'].min():.2f}, {df_gpt_filtered['r2'].max():.2f})"
+        )
         P_below_0_05 = df_gpt_filtered[df_gpt_filtered["p_value"] < 0.05].shape[0]
         summary_data.append(["GPT", M_SD, N, Range, P_below_0_05])
     else:
-        for model, df_temp in zip(["Elastic Net (en)", "Random Forest (rf)"], [df_en, df_rf]):
+        for model, df_temp in zip(
+            ["Elastic Net (en)", "Random Forest (rf)"], [df_en, df_rf]
+        ):
             M_SD = f"{df_temp['r2'].mean():.2f} ({df_temp['r2'].std():.2f})"
             N = df_temp.shape[0]
             Range = f"({df_temp['r2'].min():.2f}, {df_temp['r2'].max():.2f})"
             P_below_0_05 = df_temp[df_temp["p_value"] < 0.05].shape[0]
             summary_data.append([model, M_SD, N, Range, P_below_0_05])
 
-    summary_df = pd.DataFrame(summary_data, columns=["ML Model", "M (SD)", "N", "Range", "P < 0.05 Count"])
+    summary_df = pd.DataFrame(
+        summary_data, columns=["ML Model", "M (SD)", "N", "Range", "P < 0.05 Count"]
+    )
 
     st.write("### Model Summary")
     st.table(summary_df)
 
 # Add the chatbot to the page
-app_with_chatbot.show_chatbot_ui()
+new_app_chatbot.show_chatbot_ui(page_name="Model Performance Analysis")

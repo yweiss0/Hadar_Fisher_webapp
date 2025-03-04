@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
-import app_with_chatbot
+import new_app_chatbot
 
 # File Path
 DATA_DIR = "data/files_tab_1_2/"
@@ -12,7 +12,9 @@ st.set_page_config(page_title="Data Table View", page_icon="📊", layout="wide"
 st.title("📋 Model performance per participant")
 
 # Center the entire layout
-st.write("<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True)
+st.write(
+    "<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True
+)
 
 # Create adjusted layout
 col_space1, left_col, col_space2, right_col, col_space3 = st.columns([1, 2, 1, 6, 1])
@@ -22,7 +24,9 @@ with left_col:
 
     # Dropdowns
     nlp_approach = st.selectbox("NLP Approach", ["COMBINED", "LDA", "GPT", "LIWC"])
-    nomothetic_idiographic = st.selectbox("Idiographic/Nomothetic", ["Idiographic", "Nomothetic"])
+    nomothetic_idiographic = st.selectbox(
+        "Idiographic/Nomothetic", ["Idiographic", "Nomothetic"]
+    )
     ml_model = st.selectbox("ML Model", ["Elastic Net (en)", "Random Forest (rf)"])
 
     nom_idio_value = "nomot" if nomothetic_idiographic == "Nomothetic" else "idiog"
@@ -58,7 +62,9 @@ with left_col:
             ]
 
         if df.empty:
-            st.warning("No data for the selected outcome and Nomothetic/Idiographic combination.")
+            st.warning(
+                "No data for the selected outcome and Nomothetic/Idiographic combination."
+            )
             st.stop()
 
         # st.success("Loaded data: **modelfit_gpt_all.csv** (GPT mode)")
@@ -70,9 +76,13 @@ with left_col:
 
     else:
         # -- Non-GPT case (original logic) --
-        outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]).lower()
+        outcome = st.selectbox(
+            "Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]
+        ).lower()
         outcome = "na" if outcome == "negative affect" else outcome
-        file_name = f"{nlp_approach_value}_{ml_model_short}_{outcome}_{nom_idio_value}.csv"
+        file_name = (
+            f"{nlp_approach_value}_{ml_model_short}_{outcome}_{nom_idio_value}.csv"
+        )
         file_path = os.path.join(DATA_DIR, file_name)
 
         df = None
@@ -107,5 +117,5 @@ st.write("</div>", unsafe_allow_html=True)
 
 
 # Add the chatbot to the page
-app_with_chatbot.show_chatbot_ui()
+new_app_chatbot.show_chatbot_ui(page_name="Data Table View")
 # WORKING

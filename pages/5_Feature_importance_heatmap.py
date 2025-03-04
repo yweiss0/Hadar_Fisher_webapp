@@ -2,13 +2,15 @@ import streamlit as st
 import pandas as pd
 import os
 import plotly.graph_objects as go
-import app_with_chatbot
+import new_app_chatbot
 import numpy as np
 
 # File Path
 DATA_DIR = "data/files_tab_4/"
 
-st.set_page_config(page_title="Feature Importance Heatmap", page_icon="📊", layout="wide")
+st.set_page_config(
+    page_title="Feature Importance Heatmap", page_icon="📊", layout="wide"
+)
 
 st.title("📉 feature importance Heatmap (SHAP Values)")
 
@@ -23,7 +25,9 @@ with right_col:
     outcome = "na" if outcome.lower() == "negative affect" else outcome.lower()
 
     # Dropdown for selecting model
-    ml_model = st.selectbox("Model", ["Elastic Net (EN)", "Random Forest (RF)"], key="ml_model")
+    ml_model = st.selectbox(
+        "Model", ["Elastic Net (EN)", "Random Forest (RF)"], key="ml_model"
+    )
     ml_model_short = "en" if ml_model == "Elastic Net (EN)" else "rf"
 
     # Check if the model selection has changed and update the default slider accordingly.
@@ -41,10 +45,10 @@ with right_col:
 
     # Checkbox for ABS values
     use_abs = st.checkbox("Use absolute values", value=False)
-    #tooltip for ABS values
+    # tooltip for ABS values
 
     st.markdown(
-    """
+        """
     <style>
         .tooltip-container {
             display: inline-block;
@@ -88,10 +92,8 @@ with right_col:
         </span>
     </div>
     """,
-    unsafe_allow_html=True
-)
-
-    
+        unsafe_allow_html=True,
+    )
 
     if use_abs:
         DATA_DIR = "data/files_tab_7/"
@@ -147,10 +149,10 @@ with right_col:
     options = [round(x, 4) for x in np.arange(-0.01, 0.01 + 0.0001, 0.0001)]
 
     # Initialize symmetric slider state if not already set.
-    if 'symmetric_val' not in st.session_state:
+    if "symmetric_val" not in st.session_state:
         st.session_state.symmetric_val = (-0.005, 0.005)  # Default fallback
 
-    if 'prev_val' not in st.session_state:
+    if "prev_val" not in st.session_state:
         st.session_state.prev_val = st.session_state.symmetric_val
 
     def update_symmetric():
@@ -184,7 +186,7 @@ with right_col:
             <b style="color: red;">❌ Data Filtered Out:</b> <br> Importance values between <b>{slider_value[0]:.4f}</b> and <b>{slider_value[1]:.4f}</b>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
     # Use the positive threshold from the symmetric range as the filtering threshold
@@ -196,15 +198,20 @@ with left_col:
     df_filtered = df[df["participant"].isin(selected_participants)]
 
     # Aggregate duplicate entries before pivoting
-    df_filtered = df_filtered.groupby(["participant", "variable"], as_index=False)["importance"].mean()
+    df_filtered = df_filtered.groupby(["participant", "variable"], as_index=False)[
+        "importance"
+    ].mean()
 
     # Apply the importance threshold to filter out values between -threshold and threshold
     df_filtered = df_filtered[
-        (df_filtered["importance"] <= -min_importance_threshold) | (df_filtered["importance"] >= min_importance_threshold)
+        (df_filtered["importance"] <= -min_importance_threshold)
+        | (df_filtered["importance"] >= min_importance_threshold)
     ]
 
     # Pivot for heatmap (Swapped axes: participants → x, features → y)
-    heatmap_data = df_filtered.pivot(index="variable", columns="participant", values="importance").fillna(0)
+    heatmap_data = df_filtered.pivot(
+        index="variable", columns="participant", values="importance"
+    ).fillna(0)
 
     if heatmap_data.empty:
         st.warning("No features meet the selected importance threshold.")
@@ -223,41 +230,56 @@ with left_col:
         "time": "purple",
         "lda": "orange",
         "text feature": "brown",
-        
     }
 
     # --- Group & Sort y-axis by NLP Method ---
     # Define the desired order: text length, LIWC, time, gpt, vader, lda.
-    nlp_order = {"text length": 1, "liwc": 2, "time": 3, "gpt": 4, "vader": 5, "lda": 6, "text feature": 7}
+    nlp_order = {
+        "text length": 1,
+        "liwc": 2,
+        "time": 3,
+        "gpt": 4,
+        "vader": 5,
+        "lda": 6,
+        "text feature": 7,
+    }
     sorted_features = sorted(
         heatmap_data.index,
-        key=lambda var: nlp_order.get(nlp_methods.get(var, "text length"), 999)
+        key=lambda var: nlp_order.get(nlp_methods.get(var, "text length"), 999),
     )
     heatmap_data = heatmap_data.loc[sorted_features]
     # --- End Sorting ---
 
     # Assign colors based on NLP method (default to black if unknown)
-    feature_colors = [color_map.get(nlp_methods.get(var, "text length"), "black") for var in heatmap_data.index]
+    feature_colors = [
+        color_map.get(nlp_methods.get(var, "text length"), "black")
+        for var in heatmap_data.index
+    ]
 
     # Create color scale for positive and negative values
     color_scale = [
-        [0.0, "rgb(75, 48, 163)"],     # Deep Blue (Strong Negative)
-        [0.25, "rgb(188, 170, 220)"],   # Blue
-        [0.5, "rgb(247, 247, 247)"],    # White (Neutral)
-        [0.75, "rgb(215, 48, 39)"],     # Red
-        [1.0, "rgb(165, 0, 38)"],       # Deep Red (Strong Positive)
+        [0.0, "rgb(75, 48, 163)"],  # Deep Blue (Strong Negative)
+        [0.25, "rgb(188, 170, 220)"],  # Blue
+        [0.5, "rgb(247, 247, 247)"],  # White (Neutral)
+        [0.75, "rgb(215, 48, 39)"],  # Red
+        [1.0, "rgb(165, 0, 38)"],  # Deep Red (Strong Positive)
     ]
 
     # Adjust heatmap height and width dynamically
     num_features = len(heatmap_data)
     num_participants = len(heatmap_data.columns)
     heatmap_height = min(max(600, num_features * 40), 1000)  # Min 600px, Max 1000px
-    heatmap_width = max(800, num_participants * 75)  # Keep dynamic width for consistency
+    heatmap_width = max(
+        800, num_participants * 75
+    )  # Keep dynamic width for consistency
 
     # Determine max absolute value for symmetric color scaling
     vmax_value = max(abs(heatmap_data.min().min()), abs(heatmap_data.max().max()))
     hover_text = [
-        [f"Participant: {p}<br>Feature: {f}<br>Importance: {heatmap_data.at[f, p]:.4f}" for p in heatmap_data.columns]
+        [
+            f"Participant: {p}<br>Feature: {f}<br>Importance: {heatmap_data.at[f, p]:.4f}"
+            for p in heatmap_data.columns
+        ]
         for f in heatmap_data.index
     ]
 
@@ -266,13 +288,13 @@ with left_col:
         data=go.Heatmap(
             z=heatmap_data.values,
             x=heatmap_data.columns,  # Participants on X-axis
-            y=heatmap_data.index,    # Features on Y-axis
+            y=heatmap_data.index,  # Features on Y-axis
             colorscale=color_scale,
             colorbar=dict(title="SHAP Value"),
             zmin=-vmax_value,
             zmax=vmax_value,
             text=hover_text,
-            hoverinfo="text"
+            hoverinfo="text",
         ),
     )
 
@@ -294,7 +316,7 @@ with left_col:
                 tickvals=[len(heatmap_data.columns) // 2],  # Single tick in the middle
                 ticktext=["All Participants"],  # Single label
                 tickfont=dict(size=12),
-            )
+            ),
         )
     else:
         fig.update_layout(
@@ -310,11 +332,13 @@ with left_col:
             ),
             xaxis=dict(
                 tickmode="array",
-                tickvals=list(range(len(heatmap_data.columns))),  # One tick per participant
+                tickvals=list(
+                    range(len(heatmap_data.columns))
+                ),  # One tick per participant
                 ticktext=heatmap_data.columns,  # Individual participant names
                 tickangle=45,  # Rotate labels for readability
                 tickfont=dict(size=10),
-            )
+            ),
         )
 
     # Show Plotly figure
@@ -323,7 +347,9 @@ with left_col:
     # Add a legend under the graph for the NLP method colors
     legend_items = []
     for method, color in color_map.items():
-        legend_items.append(f'<span style="color: {color}; font-weight: bold;">■</span> {method.upper()}')
+        legend_items.append(
+            f'<span style="color: {color}; font-weight: bold;">■</span> {method.upper()}'
+        )
     legend_html = "    ".join(legend_items)
     st.markdown(
         f"""
@@ -332,10 +358,12 @@ with left_col:
             {legend_html}
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
     # Add the chatbot to the page
-    app_with_chatbot.show_chatbot_ui()
+    new_app_chatbot.show_chatbot_ui(
+        page_name="feature importance Heatmap (SHAP Values)"
+    )
 
     # WORKING
