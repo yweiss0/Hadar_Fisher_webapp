@@ -1,4 +1,4 @@
-**Can Natural Language Processing Track Negative Emotions in the Daily Lives of Adolescents? - Streamlit Web App**
+**Natural Language Processing Track  Emotions - Streamlit Web App**
 
 This repository contains the source code for the Streamlit web application, which explores whether natural language processing (NLP) can track negative emotions in adolescents' daily lives.
 
