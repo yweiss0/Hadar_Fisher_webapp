@@ -1,8 +1,8 @@
-**Natural Language Processing Track  Emotions - Streamlit Web App**
+# Natural Language Processing Track  Emotions - Streamlit Web App
 
 This repository contains the source code for the Streamlit web application, which explores whether natural language processing (NLP) can track negative emotions in adolescents' daily lives.
 
-**Project Structure**
+## Project Structure
 
 **pages/** - Contains the code for all the web application pages.
 
@@ -20,22 +20,27 @@ This repository contains the source code for the Streamlit web application, whic
 
 **threed.html** - Contains the code for the bird animation effect displayed on the main page of the app.
 
-**Getting Started**
+## Getting Started
 
 To run the web app locally, follow these steps:
 
-Clone the repository:
+1. Clone the repository:
+```sh
+git clone https://github.com/yweiss0/Hadar_Fisher_webapp.git
 
-git clone https://github.com/Hadar_Fisher_webapp.git
 cd Hadar_Fisher_webapp
+```
 
-Install the required dependencies:
-
+2. Install the required dependencies:
+```sh
 pip install -r requirements.txt
+```
 
-Run the Streamlit app:
+3. Run the Streamlit app:
 
+```sh
 streamlit run app.py
+```
 
 **Dependencies**
 
