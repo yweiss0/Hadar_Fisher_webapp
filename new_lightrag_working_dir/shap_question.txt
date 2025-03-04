@@ -1,0 +1,37 @@
+hybrid:
+### Feature Importance Heatmap (SHAP Values)
+
+The **Feature Importance Heatmap** utilizes **SHAP Values** (SHapley Additive exPlanations) to visualize and interpret the significance of different features in predictive models. This graphical representation provides insights into which features are most influential in determining model outcomes, particularly in the context of analyzing emotional states through natural language processing (NLP).
+
+#### Graph Details:
+
+1. **Layout**: 
+   - The heatmap is organized in a two-column layout, with the feature importance visualization on the left and UI controls on the right.
+
+2. **Axes**:
+   - **X-Axis**: Represents selected participants. If "All" participants are chosen, the x-axis displays a single label indicating this selection; otherwise, it shows individual participant names.
+   - **Y-Axis**: Indicates the features (variables) included based on their importance, filtered according to a specified threshold.
+
+3. **Data Processing**:
+   - The data is sourced from a specific CSV file related to the selected model and outcome.
+   - The features undergo grouping and averaging, allowing for a clearer representation of their importance.
+
+4. **Color Scale**:
+   - **Deep Blue**: Indicates strong negative SHAP values, representing features that negatively influence the prediction.
+   - **White**: Represents neutral importance, where the feature has little effect on the predictions.
+   - **Deep Red**: Signifies strong positive SHAP values, indicating features that positively contribute to the model's outcomes.
+
+5. **Feature Label Colors**:
+   - Each feature's label on the y-axis is colored accordingly to indicate its associated NLP method (for example, LIWC, GPT, etc.), creating a clearer distinction among different approaches.
+
+6. **Legend and Layout Adjustments**:
+   - A legend is provided below the heatmap to explain the color coding for different NLP methods.
+   - The heatmap’s dimensions are dynamically adjusted based on the number of features and participants displayed.
+
+This heatmap serves as a powerful tool to help researchers understand how various features derived from text inputs impact emotion predictions, facilitating better interpretability of machine learning models used in psychological studies.
+Time: 7.83 seconds
+Cost: $0.03910770
+
+
+
+Total time for all queries: 0.00 seconds

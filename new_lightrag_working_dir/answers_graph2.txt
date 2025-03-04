@@ -1,0 +1,14 @@
+hybrid:
+### Best Model Performance Experiment Overview
+
+The Best Model Performance analysis focuses on identifying and evaluating the top-performing predictive models for participants in the study. The experiment aims to determine how well different machine learning models, including Random Forest and Elastic Net, predict negative affect based on data gathered from adolescents.
+
+Participants provided data through Ecological Momentary Assessment (EMA) surveys, which were then analyzed using various modeling approaches. The performance of the models was assessed using metrics like R² (coefficient of determination) and RMSE (Root Mean Square Error). Participants were categorized into groups based on the performance of their models, with those achieving high R² values (the top 25% performers) identified as the "High R² group," while those in the bottom 25% were designated as the "Low R² group."
+
+This experiment reflects the effectiveness of personalized versus generalized modeling approaches and highlights significant variability in model performance across different participants. The findings ultimately aim to improve the understanding and prediction of emotional fluctuations in the target demographic.
+Time: 5.06 seconds
+Cost: $0.00299040
+
+
+
+Total time for all queries: 0.00 seconds

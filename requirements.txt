@@ -10,3 +10,11 @@ langchain-community
 langchain-core
 faiss-cpu
 langchain-huggingface
+PyPDF2
+lightrag-hku==1.1.6
+tiktoken
+pyvis
+pipmaster
+bs4
+nest_asyncio
+

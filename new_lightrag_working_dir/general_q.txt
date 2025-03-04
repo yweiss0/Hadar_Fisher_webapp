@@ -1,0 +1,22 @@
+hybrid:
+### Overview of the Experiment
+
+The study involves a group of 98 adolescents participating in an experiment aimed at analyzing emotional fluctuations, particularly negative emotions such as sadness, anger, and nervousness. 
+
+### Methodology
+
+Participants provide data through Ecological Momentary Assessment (EMA) surveys, allowing for real-time assessment of their emotional states. The data collected is evaluated using various statistical models, including Random Forest and Elastic Net, to predict and analyze negative affect.
+
+### Analysis Approaches
+
+The research employs both Nomothetic and Idiographic approaches: 
+- **Nomothetic models** analyze group-level trends from aggregated data.
+- **Idiographic models** focus on individual-level variations, capturing personal emotional responses.
+
+The effectiveness of these models is assessed through performance metrics, such as R² values and RMSE. The study ultimately aims to enhance understanding of emotional dynamics among adolescents and improve predictive modeling of emotional states.
+Time: 4.19 seconds
+Cost: $0.00301140
+
+
+
+Total time for all queries: 0.00 seconds
