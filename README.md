@@ -1,4 +1,4 @@
-# Natural Language Processing Track  Emotions - Streamlit Web App
+# NLP Track  Emotions - Streamlit Web App
 
 This repository contains the source code for the Streamlit web application, which explores whether natural language processing (NLP) can track negative emotions in adolescents' daily lives.
 
