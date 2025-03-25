@@ -20,6 +20,8 @@ This repository contains the source code for the Streamlit web application, whic
 
 **threed.html** - Contains the code for the bird animation effect displayed on the main page of the app.
 
+**website_lightrag.py** - Coontains the lightrag cli code, use this file with the code in line 186 to add more docs and create new lightrag db
+
 ## Getting Started
 
 To run the web app locally, follow these steps:
