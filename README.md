@@ -22,7 +22,7 @@ This repository contains the source code for the Streamlit web application, whic
 
 **website_lightrag.py** - Coontains the lightrag cli code, use this file with the code in line 186 to add more docs and create new lightrag db
 
-**new_app_chatbot.bak.py** - Code for the LightRAG chatbot, which is not currently being used.
+**new_app_chatbot_bak.py** - Code for the LightRAG chatbot, which is not currently being used.
 
 ## Getting Started
 
