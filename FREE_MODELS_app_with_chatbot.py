@@ -37,7 +37,7 @@ OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 # Configuration
 PDF_PATH = "docs\draft_analysis.pdf"
-# PDF_PATH = r"C:\Projects\personal_projects2\Hadar_Fisher_Website\docs\draft_analysis.pdf"
+
 INDEX_NAME = "hadar_faiss_index"
 EMBEDDING_MODEL = "text-embedding-3-small"
 LLM_MODEL = "microsoft/phi-3-medium-128k-instruct:free"
@@ -45,7 +45,7 @@ LLM_MODEL = "microsoft/phi-3-medium-128k-instruct:free"
 # # Load CSV file
 # @st.cache_data
 # def load_data():
-#     return pd.read_csv(r"C:\Projects\personal_projects2\Hadar_Fisher_Website\LDA6_modelfit_rf_nervous.csv")
+
 
 # Chat bot logic
 # Create Message class for chat tracking
