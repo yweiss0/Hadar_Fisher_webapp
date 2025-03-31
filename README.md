@@ -16,11 +16,13 @@ This repository contains the source code for the Streamlit web application, whic
 
 **FREE_MODELS_app_with_chatbot.py** - Code for the chatbot using free models (via OpenRouter.ai), but not in use currently.
 
-**new_app_chatbot.py** - Code for the LightRAG chatbot, which is currently being used.
+**new_app_chatbot.py** - Code for the chatbot, which is currently being used. it uses file_search tool with the pdf files from the docs folder
 
 **threed.html** - Contains the code for the bird animation effect displayed on the main page of the app.
 
 **website_lightrag.py** - Coontains the lightrag cli code, use this file with the code in line 186 to add more docs and create new lightrag db
+
+**new_app_chatbot.bak.py** - Code for the LightRAG chatbot, which is not currently being used.
 
 ## Getting Started
 
