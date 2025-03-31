@@ -12,7 +12,7 @@ This repository contains the source code for the Streamlit web application, whic
 
 **hadar_faiss_index/** - Contains the embeddings for the chatbot using free models (not in use currently as we have switched to LightRAG with OpenAI LLM).
 
-**new_lightrag_working_dir/** - The active directory containing embeddings and knowledge for the LightRAG chatbot, currently in use.
+**new_lightrag_working_dir/** - The active directory containing embeddings and knowledge for the LightRAG chatbot, currently not in use.
 
 **FREE_MODELS_app_with_chatbot.py** - Code for the chatbot using free models (via OpenRouter.ai), but not in use currently.
 
