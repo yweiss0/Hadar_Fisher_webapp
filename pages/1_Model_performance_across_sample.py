@@ -26,7 +26,7 @@ with left_col:
     st.write("**Model Selection:**")
 
     # Dropdowns
-    nlp_approach = st.selectbox("NLP Approach", ["LDA", "GPT", "COMBINED", "LIWC"])
+    nlp_approach = st.selectbox("NLP Approach", ["COMBINED", "GPT", "LDA", "LIWC"])
     # For GPT, default to Nomothetic so that "na" (displayed as Negative Affect) has data
     if nlp_approach == "GPT":
         nomothetic_idiographic = st.selectbox(
