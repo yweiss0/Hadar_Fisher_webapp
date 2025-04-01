@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Literal
 from streamlit_float import *
 import re
+import markdown
 
 # --- Configuration ---
 ASSISTANT_NAME = "PDF_QA_Assistant"
@@ -20,6 +21,18 @@ ASSISTANT_INSTRUCTIONS = (
     "'I can't help with that.' "
 )
 
+HELP_RESPONSE_TEXT = """💬 Hi, I'm your On-Site Guide: The Emotion Modeling Chatbot\n\n
+I'm here to help you navigate the paper and the website’s visualizations. I'm a helpful assistant that can answer many of the questions you might have while exploring the research.\n\n
+---\n\n
+📄 **I can Answer Questions About the Paper like**\n
+* Responds to questions about the study's goals, methods, results, and conclusions\n
+* Can explain key concepts from the paper in simpler terms\n
+* Help clarify terminology, variables, and analytic approaches\n\n
+📊 **I can Explain Website Figures, for example**\n
+* Offer descriptions of the different interactive visualizations\n
+* Help you understand what each figure shows (e.g., model performance, feature importance)\n
+* Guide you in interpreting metrics like R², SHAP values, and model comparisons"""
+
 POLLING_INTERVAL_S = 3
 PDF_FILES = [
     "docs/new_draft_bot_25-03-25.pdf",
@@ -27,6 +40,7 @@ PDF_FILES = [
     "docs/LIWC_vars.pdf",
     "docs/website_description.pdf",
     "docs/QnA_chatbot.pdf",
+    "docs/onsiteguide.pdf",
 ]
 
 # Initialize OpenAI client
@@ -94,6 +108,33 @@ def wait_for_run_completion(thread_id: str, run_id: str) -> str:
                 return run_status.status
         except Exception as e:
             time.sleep(POLLING_INTERVAL_S * 2)
+
+
+def is_help_query(query: str) -> bool:
+    """Detects if user is asking about chatbot capabilities"""
+    help_phrases = {
+        "what can you do",
+        "what do you know",
+        "what can i ask",
+        "capabilities",
+        "purpose",
+        "function",
+        "assist with",
+        "what are you",
+        "who are you",
+        "explain yourself",
+        "what questions can i ask",
+        "how to use",
+        "what do you do",
+        "what can you help with",
+        "waht can you do?",
+    }
+
+    query = query.lower().strip("?.,! ")
+    return any(phrase in query for phrase in help_phrases) or query in {
+        "what can you help with",
+        "what can you do",
+    }
 
 
 def get_assistant_response_text(thread_id: str) -> str:
@@ -226,18 +267,40 @@ def is_graph_related(query: str) -> bool:
 
 def chatbot_response_generator(user_query, page_name="Model Performance Analysis"):
     """Generator that simulates streaming response"""
+    # Check for help query first
+    if is_help_query(user_query):
+        # Simulate thinking delay
+        time.sleep(2)
+
+        # Split help text into lines for streaming
+        help_lines = HELP_RESPONSE_TEXT.split("\n")
+        full_response = ""
+
+        # Stream character by character with appropriate delays
+        for i, line in enumerate(help_lines):
+            if i > 0:  # Add newline before new lines except the first one
+                full_response += "\n"
+
+            # Add line character by character
+            for char in line:
+                full_response += char
+                yield full_response.strip()
+                time.sleep(0.01)  # Adjust timing for smooth appearance
+
+            # Add slight delay between sections
+            if line.startswith(("📄", "📊")):
+                time.sleep(0.2)
+        return
+
+    # Existing logic for normal queries
     initialize_assistant()
 
-    # Modify query if graph-related
     if is_graph_related(user_query):
         modified_query = f"In page '{page_name}', {user_query}"
     else:
         modified_query = user_query
 
-    # Get full response from assistant
     full_response = process_user_query(modified_query)
-
-    # Simulate streaming response
     words = full_response.split()
     current_chunk = ""
     for word in words:
@@ -330,13 +393,17 @@ def create_message_div(msg: Message) -> str:
     chat_icon_class = (
         f"chat-icon {'user-icon' if msg.role == 'user' else 'assistant-icon'}"
     )
+
+    # Convert markdown to HTML if this is an assistant message
+    content = markdown.markdown(msg.content) if msg.role == "assistant" else msg.content
+
     return f"""
     <div class="chat-row {'row-reverse' if msg.role == 'user' else ''}">
         <div class="chat-icon-container">
             <div class="{chat_icon_class}">{icon}</div>
         </div>
         <div class="chat-bubble {'user-bubble' if msg.role == 'user' else 'assistant-bubble'}">
-            ​{msg.content}
+            {content}
         </div>
     </div>
     """
@@ -398,6 +465,10 @@ def show_chatbot_ui(page_name="Model Performance Analysis"):
                     # Process query
                     with messages_container:
                         with st.spinner("Thinking..."):
+                            # Add artificial delay for help responses
+                            if is_help_query(user_query):
+                                time.sleep(2)
+
                             response_generator = chatbot_response_generator(
                                 user_query, page_name
                             )
@@ -405,13 +476,13 @@ def show_chatbot_ui(page_name="Model Performance Analysis"):
                             try:
                                 first_chunk = next(response_generator)
                                 full_response = first_chunk
-                                streaming_div = f"""
+                                streaming_div = """
                                 <div class="chat-row">
                                     <div class="chat-icon-container">
                                         <div class="chat-icon assistant-icon">{get_chat_icon("assistant")}</div>
                                     </div>
                                     <div class="chat-bubble assistant-bubble">
-                                        {full_response}
+                                        {full_response.replace("\n", "<br>")}
                                     </div>
                                 </div>
                                 """
@@ -424,13 +495,17 @@ def show_chatbot_ui(page_name="Model Performance Analysis"):
                     # Stream response
                     for chunk in response_generator:
                         full_response = chunk
+
+                        # Convert markdown to HTML for display
+                        html_response = markdown.markdown(full_response)
+
                         streaming_div = f"""
                         <div class="chat-row">
                             <div class="chat-icon-container">
                                 <div class="chat-icon assistant-icon">{get_chat_icon("assistant")}</div>
                             </div>
                             <div class="chat-bubble assistant-bubble">
-                                {full_response}
+                                {html_response}
                             </div>
                         </div>
                         """
