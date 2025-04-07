@@ -320,7 +320,7 @@ class Message:
 
 def init_chatbot_state():
     if "show_chat" not in st.session_state:
-        st.session_state.show_chat = False
+        st.session_state.show_chat = True
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
