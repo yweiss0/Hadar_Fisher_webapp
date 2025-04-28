@@ -3,26 +3,37 @@ import os
 import time
 import traceback
 from openai import OpenAI
-from typing import List
+from typing import List, Dict, Any
 from dataclasses import dataclass
 from typing import Literal
 from streamlit_float import *
 import re
 import markdown
+import numpy as np
+import faiss
+import pickle
+import PyPDF2
+import json
+from tqdm import tqdm
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+print("Loading environment variables from .env file...")
 
 # --- Configuration ---
 ASSISTANT_NAME = "PDF_QA_Assistant"
-ASSISTANT_MODEL = "gpt-4o-mini"
+ASSISTANT_MODEL = "gpt-4.1-mini"
 ASSISTANT_INSTRUCTIONS = (
-    "You are a helpful assistant. Your primary function is to answer questions "
-    "based *solely* on the content of the PDF files provided in the current thread. "
-    "Do not use any external knowledge or information outside of these files. when you find the answer in the pdf file summarize it and Limit your response to 70 words or fewer, then response "
-    "If the answer cannot be found within the provided files, explicitly state: "
-    "'I can't help with that.' "
+    "You are a helpful on-site guide for research about emotion modeling. Your primary function is to answer questions "
+    "about the PDF documents in the research database, including papers, graphs, visualizations, and methodological explanations. "
+    "Only use information from these documents - do not use external knowledge. Keep your responses concise, around 70 words. "
+    "If you cannot find information to answer a question in the provided context, clearly state: 'I can't help with that.' "
+    "When explaining visualizations or graphs, be specific about what the data shows. Cite the document source when possible."
 )
 
 HELP_RESPONSE_TEXT = """💬 Hi, I'm your On-Site Guide: The Emotion Modeling Chatbot\n\n
-I'm here to help you navigate the paper and the website’s visualizations. I'm a helpful assistant that can answer many of the questions you might have while exploring the research.\n\n
+I'm here to help you navigate the paper and the website's visualizations. I'm a helpful assistant that can answer many of the questions you might have while exploring the research.\n\n
 ---\n\n
 📄 **I can Answer Questions About the Paper like**\n
 * Responds to questions about the study's goals, methods, results, and conclusions\n
@@ -43,44 +54,229 @@ PDF_FILES = [
     "docs/onsiteguide.pdf",
 ]
 
+# Vector DB configuration
+VECTOR_DB_PATH = "docs/vector_store.faiss"
+VECTOR_DB_METADATA_PATH = "docs/vector_store_metadata.pkl"
+EMBEDDING_MODEL = "text-embedding-3-small"
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 200
+TOP_K_RESULTS = 5
+
 # Initialize OpenAI client
 API_KEY = None
 try:
-    API_KEY = st.secrets["OPENAI_API_KEY"]
-    print("Using API Key from Streamlit secrets.")
-except (KeyError, FileNotFoundError):
-    print("Streamlit secrets not found or key 'OPENAI_API_KEY' missing.")
-    print("Attempting to use environment variable 'OPENAI_API_KEY'...")
-    API_KEY = os.environ.get("OPENAI_API_KEY")
+    # First try to get from Streamlit secrets
+    API_KEY = st.secrets.get("OPENAI_API_KEY")
     if API_KEY:
-        print("Using API Key from environment variable.")
+        print("Using API Key from Streamlit secrets.")
     else:
-        st.error(
-            "OpenAI API Key not found. Please set it in Streamlit secrets (secrets.toml) or as an environment variable OPENAI_API_KEY."
+        # Then try environment variable
+        API_KEY = os.getenv("OPENAI_API_KEY")
+        if API_KEY:
+            print(
+                f"Using API Key from environment variable. Key starts with: {API_KEY[:5]}..."
+            )
+        else:
+            print("API Key not found in environment variables.")
+except Exception as e:
+    print(f"Error accessing Streamlit secrets: {e}")
+    # Try environment variable as fallback
+    API_KEY = os.getenv("OPENAI_API_KEY")
+    if API_KEY:
+        print(
+            f"Using API Key from environment variable after secrets error. Key starts with: {API_KEY[:5]}..."
         )
-        # Don't st.stop() here, let the UI show the error and potentially fail later if needed
-        # st.stop()
 
 # --- Initialize OpenAI Client ---
 client = None
 if API_KEY:
     try:
         client = OpenAI(api_key=API_KEY)
-        print("OpenAI client initialized successfully.")
+        # Test the client with a simple call
+        response = client.embeddings.create(
+            input="Test connection", model=EMBEDDING_MODEL
+        )
+        print("OpenAI client initialized and tested successfully.")
     except Exception as e:
-        st.error(f"Failed to initialize OpenAI client: {e}")
+        error_message = f"Failed to initialize or test OpenAI client: {e}"
+        print(error_message)
+        st.error(error_message)
         # client remains None
 else:
-    # Error already shown above if key is missing
-    pass
+    error_message = "OpenAI API Key not found. Please set it in Streamlit secrets (secrets.toml) or as an environment variable OPENAI_API_KEY."
+    print(error_message)
+    st.error(error_message)
 
-# client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+# --- RAG Vector Database Functions ---
+def extract_text_from_pdf(pdf_path: str) -> str:
+    """Extract text from a PDF file."""
+    try:
+        text = ""
+        with open(pdf_path, "rb") as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+        return text
+    except Exception as e:
+        print(f"Error extracting text from {pdf_path}: {e}")
+        return ""
+
+
+def chunk_text(
+    text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP
+) -> List[str]:
+    """Split text into overlapping chunks."""
+    if not text:
+        return []
+
+    chunks = []
+    start = 0
+    text_length = len(text)
+
+    while start < text_length:
+        end = min(start + chunk_size, text_length)
+        # If this is not the last chunk, try to end at a period or newline
+        if end < text_length:
+            # Look for a good breaking point (period followed by space, or newline)
+            last_period = max(
+                text.rfind(". ", start, end), text.rfind("\n", start, end)
+            )
+            if (
+                last_period > start + 0.5 * chunk_size
+            ):  # Only use if we've covered at least half the desired chunk
+                end = last_period + 1  # Include the period
+
+        chunks.append(text[start:end])
+        start = end - overlap
+
+    return chunks
+
+
+def get_embeddings(texts: List[str]) -> np.ndarray:
+    """Get embeddings for a list of texts using OpenAI API."""
+    embeddings = []
+
+    # Check if client is initialized
+    if client is None:
+        print("ERROR: OpenAI client is not initialized for getting embeddings.")
+        # Return a dummy embedding of zeros
+        return np.zeros((len(texts), 1536), dtype=np.float32)
+
+    for text in tqdm(texts, desc="Generating embeddings"):
+        if not text.strip():  # Skip empty texts
+            continue
+        try:
+            response = client.embeddings.create(input=text, model=EMBEDDING_MODEL)
+            embeddings.append(response.data[0].embedding)
+        except Exception as e:
+            print(f"Error generating embedding: {e}")
+            # Add a zero vector as a placeholder
+            embeddings.append([0.0] * 1536)  # Standard OpenAI embedding dimension
+
+    return np.array(embeddings, dtype=np.float32)
+
+
+def build_vector_database() -> None:
+    """Build a FAISS vector database from PDF files."""
+    if os.path.exists(VECTOR_DB_PATH) and os.path.exists(VECTOR_DB_METADATA_PATH):
+        print("Vector database already exists. Skipping build.")
+        return
+
+    print(
+        "Vector database not found. Please run build_vector_db.py first to create it."
+    )
+    st.error(
+        "Vector database not found. Please run build_vector_db.py first to create it."
+    )
+    return
+
+
+def load_vector_database():
+    """Load the FAISS vector database and metadata."""
+    try:
+        if not os.path.exists(VECTOR_DB_PATH) or not os.path.exists(
+            VECTOR_DB_METADATA_PATH
+        ):
+            print(
+                "Vector database files not found. Please run build_vector_db.py first."
+            )
+            return None, [], []
+
+        print("Loading vector database from disk...")
+        index = faiss.read_index(VECTOR_DB_PATH)
+        with open(VECTOR_DB_METADATA_PATH, "rb") as f:
+            metadata, chunks = pickle.load(f)
+        print(
+            f"Vector database loaded with {len(chunks)} chunks and {index.ntotal} vectors."
+        )
+        return index, metadata, chunks
+    except Exception as e:
+        print(f"Error loading vector database: {e}")
+        return None, [], []
+
+
+def search_vector_database(
+    query: str, top_k: int = TOP_K_RESULTS
+) -> List[Dict[str, Any]]:
+    """Search the vector database for similar chunks."""
+    # Load the database
+    index, metadata, chunks = load_vector_database()
+    if index is None:
+        return []
+
+    # Get query embedding
+    print(f"Generating embedding for query: '{query[:50]}...'")
+    try:
+        query_embedding = get_embeddings([query])[0].reshape(1, -1)
+
+        # Search
+        print(f"Searching for top {top_k} matches...")
+        distances, indices = index.search(query_embedding, top_k)
+
+        # Return results
+        results = []
+        for i, idx in enumerate(indices[0]):
+            if idx < len(metadata):
+                results.append(
+                    {
+                        "content": chunks[idx],
+                        "metadata": metadata[idx],
+                        "score": float(distances[0][i]),
+                    }
+                )
+
+        print(f"Found {len(results)} matching results.")
+        return results
+    except Exception as e:
+        print(f"Error during vector search: {e}")
+        return []
+
+
+def initialize_vector_database():
+    """Initialize the vector database if not already present."""
+    if "vector_db_initialized" not in st.session_state:
+        if not os.path.exists(VECTOR_DB_PATH) or not os.path.exists(
+            VECTOR_DB_METADATA_PATH
+        ):
+            print("Vector database not found. Please run build_vector_db.py first.")
+            st.warning(
+                "Vector database not found. Please run build_vector_db.py first to create it."
+            )
+        else:
+            print("Vector database found. Ready to use.")
+        st.session_state.vector_db_initialized = True
 
 
 # --- Core Chatbot Functions ---
 def upload_files(file_paths: List[str]) -> List[str]:
     """Uploads multiple files to OpenAI and returns their IDs."""
     uploaded_file_ids = []
+    # Check if client is properly initialized
+    if client is None:
+        print("OpenAI client is not initialized. Skipping file upload.")
+        return uploaded_file_ids
+
     for file_path in file_paths:
         if not os.path.exists(file_path):
             continue
@@ -171,23 +367,146 @@ def get_assistant_response_text(thread_id: str) -> str:
 def initialize_assistant():
     """Initialize assistant and files once per session"""
     if "assistant_initialized" not in st.session_state:
+        # Check if client is properly initialized
+        if client is None:
+            print(
+                "OpenAI client is not initialized. Skipping assistant initialization."
+            )
+            st.session_state.assistant_initialized = False
+            st.session_state.uploaded_file_ids = []
+            return
+
         # Upload files
         st.session_state.uploaded_file_ids = upload_files(PDF_FILES)
 
-        # Create assistant
-        assistant = client.beta.assistants.create(
-            name=ASSISTANT_NAME,
-            instructions=ASSISTANT_INSTRUCTIONS,
-            model=ASSISTANT_MODEL,
-            tools=[{"type": "file_search"}],
-        )
-        st.session_state.assistant_id = assistant.id
-        st.session_state.assistant_initialized = True
+        try:
+            # Create assistant
+            assistant = client.beta.assistants.create(
+                name=ASSISTANT_NAME,
+                instructions=ASSISTANT_INSTRUCTIONS,
+                model=ASSISTANT_MODEL,
+                tools=[{"type": "file_search"}],
+            )
+            st.session_state.assistant_id = assistant.id
+            st.session_state.assistant_initialized = True
+        except Exception as e:
+            print(f"Error creating assistant: {e}")
+            st.session_state.assistant_initialized = False
 
 
 def process_user_query(question: str) -> str:
-    """Process user query using OpenAI Assistants API"""
-    # Create thread if not exists
+    """Process user query using RAG and OpenAI"""
+    # Initialize vector database if needed
+    initialize_vector_database()
+
+    # Check if vector database exists before proceeding with RAG
+    if not os.path.exists(VECTOR_DB_PATH) or not os.path.exists(
+        VECTOR_DB_METADATA_PATH
+    ):
+        # Fallback to the original Assistants API if vector database is missing
+        if client is not None:
+            return process_user_query_via_assistant_api(question)
+        else:
+            return "Vector database not found and OpenAI client not initialized. Unable to process your request."
+
+    # Search vector database for relevant contexts
+    search_results = search_vector_database(question)
+
+    # Format the results as context
+    context = ""
+    if search_results:
+        context = "Here is information from the research documents:\n\n"
+        for i, result in enumerate(search_results):
+            content = result["content"]
+            # Remove the source information from the context to prevent model confusion
+            context += f"[Document {i+1}]:\n{content}\n\n"
+    else:
+        # No relevant context found
+        return "I couldn't find relevant information to answer your question. Could you try rephrasing or asking something else about the research?"
+
+    # Construct the prompt with retrieved context
+    rag_prompt = f"""
+The user asked: "{question}"
+
+Here is relevant information from the research:
+
+{context}
+
+Based ONLY on the information provided above, answer the user's question concisely (about 70 words).
+If the answer cannot be clearly found in the provided context, respond with "I can't help with that."
+Be specific and precise, especially when explaining research methods, results, or visualizations.
+
+IMPORTANT: DO NOT mention or reference any document numbers, file names, or sources in your answer. 
+DO NOT include any text like "According to Document X" or "From the source file" or "As stated in PDF X" or similar phrases.
+DO NOT use citations or references like (Document 1), (Source: X), etc.
+Simply provide the answer directly as if you already knew it.
+"""
+
+    try:
+        if client is None:
+            return "OpenAI client is not initialized. Unable to process your request."
+
+        # Use a direct completion API call for RAG
+        response = client.chat.completions.create(
+            model=ASSISTANT_MODEL,
+            messages=[
+                {"role": "system", "content": ASSISTANT_INSTRUCTIONS},
+                {"role": "user", "content": rag_prompt},
+            ],
+        )
+        answer = response.choices[0].message.content.strip()
+
+        # Post-process the answer to remove any remaining source references
+        answer = remove_source_references(answer)
+        return answer
+    except Exception as e:
+        print(f"Error with RAG completion: {e}")
+        # Fallback to the original Assistants API if RAG fails
+        if client is not None:
+            return process_user_query_via_assistant_api(question)
+        else:
+            return f"Error processing your request: {str(e)}"
+
+
+def remove_source_references(text: str) -> str:
+    """Remove any source references from the text."""
+    # Pattern for document references like "(Document 1)" or "Document 2:"
+    text = re.sub(r"\(Document\s+\d+[,\s]*\d*[,\s]*\d*\)", "", text)
+    text = re.sub(r"Document\s+\d+[,\s]*\d*[,\s]*\d*:", "", text)
+
+    # Pattern for source file references like "(Source: filename.pdf)" or "from filename.pdf"
+    text = re.sub(r"\(Source:?\s*[^)]*\.pdf\)", "", text)
+    text = re.sub(r"from\s+[^,\s]*\.pdf", "", text)
+
+    # Pattern for general source references
+    text = re.sub(r"\(Sources?:.*?\)", "", text)
+    text = re.sub(r"According to the documents?[,:]", "", text)
+    text = re.sub(r"Based on the (provided )?documents?[,:]", "", text)
+
+    # Pattern for specific PDF references
+    for pdf_file in PDF_FILES:
+        basename = os.path.basename(pdf_file)
+        text = text.replace(basename, "")
+        text = text.replace(os.path.splitext(basename)[0], "")
+
+    # Clean up any double spaces or unnecessary punctuation that might result
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\s+\.", ".", text)
+    text = re.sub(r"\s+,", ",", text)
+    text = re.sub(r"\s+:", ":", text)
+    text = re.sub(r"\.+", ".", text)
+
+    return text.strip()
+
+
+def process_user_query_via_assistant_api(question: str) -> str:
+    """Process user query using the original Assistants API (fallback method)"""
+    if client is None:
+        return "OpenAI client is not initialized. Unable to process your request via Assistant API."
+
+    if not st.session_state.get("assistant_initialized", False):
+        return "Assistant is not initialized. Unable to process your request."
+
     if "thread_id" not in st.session_state:
         thread = client.beta.threads.create()
         st.session_state.thread_id = thread.id
@@ -214,7 +533,9 @@ def process_user_query(question: str) -> str:
     run_status = wait_for_run_completion(st.session_state.thread_id, run.id)
 
     if run_status == "completed":
-        return get_assistant_response_text(st.session_state.thread_id)
+        response = get_assistant_response_text(st.session_state.thread_id)
+        # Also apply source reference removal to the assistant API response
+        return remove_source_references(response)
     return "Error processing your request."
 
 
@@ -292,6 +613,9 @@ def chatbot_response_generator(user_query, page_name="Model Performance Analysis
                 time.sleep(0.2)
         return
 
+    # Initialize vector database
+    initialize_vector_database()
+
     # Existing logic for normal queries
     initialize_assistant()
 
@@ -301,6 +625,10 @@ def chatbot_response_generator(user_query, page_name="Model Performance Analysis
         modified_query = user_query
 
     full_response = process_user_query(modified_query)
+
+    # Apply source reference removal one final time before streaming
+    full_response = remove_source_references(full_response)
+
     words = full_response.split()
     current_chunk = ""
     for word in words:
