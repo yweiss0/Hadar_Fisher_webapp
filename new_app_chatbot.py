@@ -44,16 +44,6 @@ I'm here to help you navigate the paper and the website's visualizations. I'm a 
 * Help you understand what each figure shows (e.g., model performance, feature importance)\n
 * Guide you in interpreting metrics like R², SHAP values, and model comparisons"""
 
-POLLING_INTERVAL_S = 3
-PDF_FILES = [
-    "docs/new_draft_bot_25-03-25.pdf",
-    "docs/graphs2.pdf",
-    "docs/LIWC_vars.pdf",
-    "docs/website_description.pdf",
-    "docs/QnA_chatbot.pdf",
-    "docs/onsiteguide.pdf",
-]
-
 # Vector DB configuration
 VECTOR_DB_PATH = "docs/vector_store.faiss"
 VECTOR_DB_METADATA_PATH = "docs/vector_store_metadata.pkl"
@@ -108,49 +98,86 @@ else:
     st.error(error_message)
 
 
-# --- RAG Vector Database Functions ---
-def extract_text_from_pdf(pdf_path: str) -> str:
-    """Extract text from a PDF file."""
-    try:
-        text = ""
-        with open(pdf_path, "rb") as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
-        return text
-    except Exception as e:
-        print(f"Error extracting text from {pdf_path}: {e}")
+def sanitize_text(text: str) -> str:
+    """
+    Sanitize text to remove or replace problematic characters that could cause encoding issues.
+    Specifically handles surrogate character issues with UTF-8 encoding.
+    """
+    if not text:
         return ""
 
+    try:
+        # Try to encode then decode as UTF-8 to catch and remove any invalid characters
+        sanitized = text.encode("utf-8", "replace").decode("utf-8")
 
-def chunk_text(
-    text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP
-) -> List[str]:
-    """Split text into overlapping chunks."""
-    if not text:
+        # Remove control characters except newlines and tabs
+        sanitized = "".join(
+            char
+            for char in sanitized
+            if char == "\n" or char == "\t" or ord(char) >= 32
+        )
+
+        return sanitized
+    except Exception as e:
+        print(f"Error during text sanitization: {e}")
+        # Extreme fallback: remove all non-ASCII characters
+        return "".join(char for char in text if ord(char) < 128)
+
+
+# --- RAG Vector Database Functions ---
+def load_vector_database():
+    """Load the FAISS vector database and metadata."""
+    try:
+        print("Loading vector database from disk...")
+        index = faiss.read_index(VECTOR_DB_PATH)
+        with open(VECTOR_DB_METADATA_PATH, "rb") as f:
+            metadata, chunks = pickle.load(f)
+        print(
+            f"Vector database loaded with {len(chunks)} chunks and {index.ntotal} vectors."
+        )
+        return index, metadata, chunks
+    except Exception as e:
+        print(f"Error loading vector database: {e}")
+        return None, [], []
+
+
+def search_vector_database(
+    query: str, top_k: int = TOP_K_RESULTS
+) -> List[Dict[str, Any]]:
+    """Search the vector database for similar chunks."""
+    # Load the database
+    index, metadata, chunks = load_vector_database()
+    if index is None:
         return []
 
-    chunks = []
-    start = 0
-    text_length = len(text)
+    # Get query embedding
+    print(f"Generating embedding for query: '{query[:50]}...'")
+    try:
+        # Sanitize query before embedding
+        sanitized_query = sanitize_text(query)
+        query_embedding = get_embeddings([sanitized_query])[0].reshape(1, -1)
 
-    while start < text_length:
-        end = min(start + chunk_size, text_length)
-        # If this is not the last chunk, try to end at a period or newline
-        if end < text_length:
-            # Look for a good breaking point (period followed by space, or newline)
-            last_period = max(
-                text.rfind(". ", start, end), text.rfind("\n", start, end)
-            )
-            if (
-                last_period > start + 0.5 * chunk_size
-            ):  # Only use if we've covered at least half the desired chunk
-                end = last_period + 1  # Include the period
+        # Search
+        print(f"Searching for top {top_k} matches...")
+        distances, indices = index.search(query_embedding, top_k)
 
-        chunks.append(text[start:end])
-        start = end - overlap
+        # Return results
+        results = []
+        for i, idx in enumerate(indices[0]):
+            if idx < len(metadata):
+                results.append(
+                    {
+                        "content": chunks[idx],
+                        "metadata": metadata[idx],
+                        "score": float(distances[0][i]),
+                    }
+                )
 
-    return chunks
+        print(f"Found {len(results)} matching results.")
+        return results
+    except Exception as e:
+        print(f"Error during vector search: {e}")
+        return []
 
 
 def get_embeddings(texts: List[str]) -> np.ndarray:
@@ -177,133 +204,129 @@ def get_embeddings(texts: List[str]) -> np.ndarray:
     return np.array(embeddings, dtype=np.float32)
 
 
-def build_vector_database() -> None:
-    """Build a FAISS vector database from PDF files."""
-    if os.path.exists(VECTOR_DB_PATH) and os.path.exists(VECTOR_DB_METADATA_PATH):
-        print("Vector database already exists. Skipping build.")
-        return
-
-    print(
-        "Vector database not found. Please run build_vector_db.py first to create it."
-    )
-    st.error(
-        "Vector database not found. Please run build_vector_db.py first to create it."
-    )
-    return
-
-
-def load_vector_database():
-    """Load the FAISS vector database and metadata."""
-    try:
-        if not os.path.exists(VECTOR_DB_PATH) or not os.path.exists(
-            VECTOR_DB_METADATA_PATH
-        ):
-            print(
-                "Vector database files not found. Please run build_vector_db.py first."
-            )
-            return None, [], []
-
-        print("Loading vector database from disk...")
-        index = faiss.read_index(VECTOR_DB_PATH)
-        with open(VECTOR_DB_METADATA_PATH, "rb") as f:
-            metadata, chunks = pickle.load(f)
-        print(
-            f"Vector database loaded with {len(chunks)} chunks and {index.ntotal} vectors."
-        )
-        return index, metadata, chunks
-    except Exception as e:
-        print(f"Error loading vector database: {e}")
-        return None, [], []
-
-
-def search_vector_database(
-    query: str, top_k: int = TOP_K_RESULTS
-) -> List[Dict[str, Any]]:
-    """Search the vector database for similar chunks."""
-    # Load the database
-    index, metadata, chunks = load_vector_database()
-    if index is None:
-        return []
-
-    # Get query embedding
-    print(f"Generating embedding for query: '{query[:50]}...'")
-    try:
-        query_embedding = get_embeddings([query])[0].reshape(1, -1)
-
-        # Search
-        print(f"Searching for top {top_k} matches...")
-        distances, indices = index.search(query_embedding, top_k)
-
-        # Return results
-        results = []
-        for i, idx in enumerate(indices[0]):
-            if idx < len(metadata):
-                results.append(
-                    {
-                        "content": chunks[idx],
-                        "metadata": metadata[idx],
-                        "score": float(distances[0][i]),
-                    }
-                )
-
-        print(f"Found {len(results)} matching results.")
-        return results
-    except Exception as e:
-        print(f"Error during vector search: {e}")
-        return []
-
-
 def initialize_vector_database():
-    """Initialize the vector database if not already present."""
+    """Initialize vector database if not already present."""
     if "vector_db_initialized" not in st.session_state:
-        if not os.path.exists(VECTOR_DB_PATH) or not os.path.exists(
-            VECTOR_DB_METADATA_PATH
-        ):
-            print("Vector database not found. Please run build_vector_db.py first.")
-            st.warning(
-                "Vector database not found. Please run build_vector_db.py first to create it."
-            )
-        else:
-            print("Vector database found. Ready to use.")
+        print("Checking vector database...")
+        # Load database to verify it exists
+        index, metadata, chunks = load_vector_database()
+        if index is not None:
+            print("Vector database verified and ready.")
         st.session_state.vector_db_initialized = True
 
 
-# --- Core Chatbot Functions ---
-def upload_files(file_paths: List[str]) -> List[str]:
-    """Uploads multiple files to OpenAI and returns their IDs."""
-    uploaded_file_ids = []
-    # Check if client is properly initialized
-    if client is None:
-        print("OpenAI client is not initialized. Skipping file upload.")
-        return uploaded_file_ids
+def remove_source_references(text: str) -> str:
+    """Remove any source references from the text."""
+    # Pattern for document references like "(Document 1)" or "Document 2:"
+    text = re.sub(r"\(Document\s+\d+[,\s]*\d*[,\s]*\d*\)", "", text)
+    text = re.sub(r"Document\s+\d+[,\s]*\d*[,\s]*\d*:", "", text)
 
-    for file_path in file_paths:
-        if not os.path.exists(file_path):
-            continue
+    # Pattern for source file references like "(Source: filename.pdf)" or "from filename.pdf"
+    text = re.sub(r"\(Source:?\s*[^)]*\.pdf\)", "", text)
+    text = re.sub(r"from\s+[^,\s]*\.pdf", "", text)
+
+    # Pattern for general source references
+    text = re.sub(r"\(Sources?:.*?\)", "", text)
+    text = re.sub(r"According to the documents?[,:]", "", text)
+    text = re.sub(r"Based on the (provided )?documents?[,:]", "", text)
+
+    # Clean up any double spaces or unnecessary punctuation that might result
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\s+\.", ".", text)
+    text = re.sub(r"\s+,", ",", text)
+    text = re.sub(r"\s+:", ":", text)
+    text = re.sub(r"\.+", ".", text)
+
+    return text.strip()
+
+
+def process_user_query(question: str) -> str:
+    """Process user query using RAG and OpenAI"""
+    # Initialize vector database if needed
+    initialize_vector_database()
+
+    # Search vector database for relevant contexts
+    search_results = search_vector_database(question)
+
+    # Format the results as context
+    context = ""
+    if search_results:
+        context = "Here is information from the research documents:\n\n"
+        for i, result in enumerate(search_results):
+            content = sanitize_text(result["content"])  # Sanitize the content
+            # Remove the source information from the context to prevent model confusion
+            context += f"[Document {i+1}]:\n{content}\n\n"
+    else:
+        # No relevant context found
+        return "I couldn't find relevant information to answer your question. Could you try rephrasing or asking something else about the research?"
+
+    # Sanitize the question too
+    sanitized_question = sanitize_text(question)
+
+    # Construct the prompt with retrieved context
+    rag_prompt = f"""
+The user asked: "{sanitized_question}"
+
+Here is relevant information from the research:
+
+{context}
+
+Based ONLY on the information provided above, answer the user's question concisely (about 70 words).
+If the answer cannot be clearly found in the provided context, respond with "I can't help with that."
+Be specific and precise, especially when explaining research methods, results, or visualizations.
+
+IMPORTANT: DO NOT mention or reference any document numbers, file names, or sources in your answer. 
+DO NOT include any text like "According to Document X" or "From the source file" or "As stated in PDF X" or similar phrases.
+DO NOT use citations or references like (Document 1), (Source: X), etc.
+Simply provide the answer directly as if you already knew it.
+"""
+
+    try:
+        if client is None:
+            return "OpenAI client is not initialized. Unable to process your request."
+
+        # Ensure prompt is properly sanitized before sending to API
+        sanitized_prompt = sanitize_text(rag_prompt)
+
+        # Use a direct completion API call for RAG
+        response = client.chat.completions.create(
+            model=ASSISTANT_MODEL,
+            messages=[
+                {"role": "system", "content": sanitize_text(ASSISTANT_INSTRUCTIONS)},
+                {"role": "user", "content": sanitized_prompt},
+            ],
+        )
+        answer = response.choices[0].message.content.strip()
+
+        # Post-process the answer to remove any remaining source references
+        answer = remove_source_references(answer)
+        return answer
+    except Exception as e:
+        print(f"Error with RAG completion: {e}")
+        # Try with more aggressive sanitization
         try:
-            with open(file_path, "rb") as f:
-                response = client.files.create(file=f, purpose="assistants")
-                uploaded_file_ids.append(response.id)
-        except Exception as e:
-            print(f"Error uploading file {file_path}: {e}")
-    return uploaded_file_ids
-
-
-def wait_for_run_completion(thread_id: str, run_id: str) -> str:
-    """Polls the Run status until it's completed or fails."""
-    while True:
-        try:
-            run_status = client.beta.threads.runs.retrieve(
-                thread_id=thread_id, run_id=run_id
+            # Attempt a more aggressive sanitization and retry
+            print("Attempting more aggressive sanitization and retry...")
+            # Even more aggressive sanitization - ASCII only
+            ascii_prompt = "".join(c for c in rag_prompt if ord(c) < 128)
+            response = client.chat.completions.create(
+                model=ASSISTANT_MODEL,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "".join(
+                            c for c in ASSISTANT_INSTRUCTIONS if ord(c) < 128
+                        ),
+                    },
+                    {"role": "user", "content": ascii_prompt},
+                ],
             )
-            if run_status.status == "completed":
-                return "completed"
-            elif run_status.status in ["queued", "in_progress", "requires_action"]:
-                time.sleep(POLLING_INTERVAL_S)
-            else:
-                return run_status.status
-        except Exception as e:
-            time.sleep(POLLING_INTERVAL_S * 2)
+            answer = response.choices[0].message.content.strip()
+            answer = remove_source_references(answer)
+            return answer
+        except Exception as retry_error:
+            print(f"Retry also failed: {retry_error}")
+            return "I'm having trouble processing your request. Please try a different question."
 
 
 def is_help_query(query: str) -> bool:
@@ -331,212 +354,6 @@ def is_help_query(query: str) -> bool:
         "what can you help with",
         "what can you do",
     }
-
-
-def get_assistant_response_text(thread_id: str) -> str:
-    """Retrieves and processes the assistant message from the thread."""
-    try:
-        messages = client.beta.threads.messages.list(
-            thread_id=thread_id, order="desc", limit=1
-        )
-        for msg in messages.data:
-            if msg.role == "assistant":
-                for content_block in msg.content:
-                    if content_block.type == "text":
-                        text_content = content_block.text
-                        # Remove citation markers using annotations
-                        clean_text = text_content.value
-                        # Process annotations in reverse order
-                        for annotation in reversed(text_content.annotations):
-                            clean_text = (
-                                clean_text[: annotation.start_index]
-                                + annotation.text
-                                + clean_text[annotation.end_index :]
-                            )
-
-                        # Additional cleanup for any remaining 【】 patterns
-                        clean_text = re.sub(r"【.*?】", "", clean_text)
-
-                        return clean_text.strip()
-        return "No response found from the assistant."
-    except Exception as e:
-        print(f"Error retrieving messages: {e}")
-        return "Error retrieving response."
-
-
-def initialize_assistant():
-    """Initialize assistant and files once per session"""
-    if "assistant_initialized" not in st.session_state:
-        # Check if client is properly initialized
-        if client is None:
-            print(
-                "OpenAI client is not initialized. Skipping assistant initialization."
-            )
-            st.session_state.assistant_initialized = False
-            st.session_state.uploaded_file_ids = []
-            return
-
-        # Upload files
-        st.session_state.uploaded_file_ids = upload_files(PDF_FILES)
-
-        try:
-            # Create assistant
-            assistant = client.beta.assistants.create(
-                name=ASSISTANT_NAME,
-                instructions=ASSISTANT_INSTRUCTIONS,
-                model=ASSISTANT_MODEL,
-                tools=[{"type": "file_search"}],
-            )
-            st.session_state.assistant_id = assistant.id
-            st.session_state.assistant_initialized = True
-        except Exception as e:
-            print(f"Error creating assistant: {e}")
-            st.session_state.assistant_initialized = False
-
-
-def process_user_query(question: str) -> str:
-    """Process user query using RAG and OpenAI"""
-    # Initialize vector database if needed
-    initialize_vector_database()
-
-    # Check if vector database exists before proceeding with RAG
-    if not os.path.exists(VECTOR_DB_PATH) or not os.path.exists(
-        VECTOR_DB_METADATA_PATH
-    ):
-        # Fallback to the original Assistants API if vector database is missing
-        if client is not None:
-            return process_user_query_via_assistant_api(question)
-        else:
-            return "Vector database not found and OpenAI client not initialized. Unable to process your request."
-
-    # Search vector database for relevant contexts
-    search_results = search_vector_database(question)
-
-    # Format the results as context
-    context = ""
-    if search_results:
-        context = "Here is information from the research documents:\n\n"
-        for i, result in enumerate(search_results):
-            content = result["content"]
-            # Remove the source information from the context to prevent model confusion
-            context += f"[Document {i+1}]:\n{content}\n\n"
-    else:
-        # No relevant context found
-        return "I couldn't find relevant information to answer your question. Could you try rephrasing or asking something else about the research?"
-
-    # Construct the prompt with retrieved context
-    rag_prompt = f"""
-The user asked: "{question}"
-
-Here is relevant information from the research:
-
-{context}
-
-Based ONLY on the information provided above, answer the user's question concisely (about 70 words).
-If the answer cannot be clearly found in the provided context, respond with "I can't help with that."
-Be specific and precise, especially when explaining research methods, results, or visualizations.
-
-IMPORTANT: DO NOT mention or reference any document numbers, file names, or sources in your answer. 
-DO NOT include any text like "According to Document X" or "From the source file" or "As stated in PDF X" or similar phrases.
-DO NOT use citations or references like (Document 1), (Source: X), etc.
-Simply provide the answer directly as if you already knew it.
-"""
-
-    try:
-        if client is None:
-            return "OpenAI client is not initialized. Unable to process your request."
-
-        # Use a direct completion API call for RAG
-        response = client.chat.completions.create(
-            model=ASSISTANT_MODEL,
-            messages=[
-                {"role": "system", "content": ASSISTANT_INSTRUCTIONS},
-                {"role": "user", "content": rag_prompt},
-            ],
-        )
-        answer = response.choices[0].message.content.strip()
-
-        # Post-process the answer to remove any remaining source references
-        answer = remove_source_references(answer)
-        return answer
-    except Exception as e:
-        print(f"Error with RAG completion: {e}")
-        # Fallback to the original Assistants API if RAG fails
-        if client is not None:
-            return process_user_query_via_assistant_api(question)
-        else:
-            return f"Error processing your request: {str(e)}"
-
-
-def remove_source_references(text: str) -> str:
-    """Remove any source references from the text."""
-    # Pattern for document references like "(Document 1)" or "Document 2:"
-    text = re.sub(r"\(Document\s+\d+[,\s]*\d*[,\s]*\d*\)", "", text)
-    text = re.sub(r"Document\s+\d+[,\s]*\d*[,\s]*\d*:", "", text)
-
-    # Pattern for source file references like "(Source: filename.pdf)" or "from filename.pdf"
-    text = re.sub(r"\(Source:?\s*[^)]*\.pdf\)", "", text)
-    text = re.sub(r"from\s+[^,\s]*\.pdf", "", text)
-
-    # Pattern for general source references
-    text = re.sub(r"\(Sources?:.*?\)", "", text)
-    text = re.sub(r"According to the documents?[,:]", "", text)
-    text = re.sub(r"Based on the (provided )?documents?[,:]", "", text)
-
-    # Pattern for specific PDF references
-    for pdf_file in PDF_FILES:
-        basename = os.path.basename(pdf_file)
-        text = text.replace(basename, "")
-        text = text.replace(os.path.splitext(basename)[0], "")
-
-    # Clean up any double spaces or unnecessary punctuation that might result
-    text = re.sub(r"\s+", " ", text)
-    text = re.sub(r"\s+\.", ".", text)
-    text = re.sub(r"\s+,", ",", text)
-    text = re.sub(r"\s+:", ":", text)
-    text = re.sub(r"\.+", ".", text)
-
-    return text.strip()
-
-
-def process_user_query_via_assistant_api(question: str) -> str:
-    """Process user query using the original Assistants API (fallback method)"""
-    if client is None:
-        return "OpenAI client is not initialized. Unable to process your request via Assistant API."
-
-    if not st.session_state.get("assistant_initialized", False):
-        return "Assistant is not initialized. Unable to process your request."
-
-    if "thread_id" not in st.session_state:
-        thread = client.beta.threads.create()
-        st.session_state.thread_id = thread.id
-
-    # Add message to thread
-    message_attachments = [
-        {"file_id": file_id, "tools": [{"type": "file_search"}]}
-        for file_id in st.session_state.uploaded_file_ids
-    ]
-    client.beta.threads.messages.create(
-        thread_id=st.session_state.thread_id,
-        role="user",
-        content=question,
-        attachments=message_attachments,
-    )
-
-    # Create and run
-    run = client.beta.threads.runs.create(
-        thread_id=st.session_state.thread_id,
-        assistant_id=st.session_state.assistant_id,
-    )
-
-    # Wait for completion
-    run_status = wait_for_run_completion(st.session_state.thread_id, run.id)
-
-    if run_status == "completed":
-        response = get_assistant_response_text(st.session_state.thread_id)
-        # Also apply source reference removal to the assistant API response
-        return remove_source_references(response)
-    return "Error processing your request."
 
 
 def is_graph_related(query: str) -> bool:
@@ -615,9 +432,6 @@ def chatbot_response_generator(user_query, page_name="Model Performance Analysis
 
     # Initialize vector database
     initialize_vector_database()
-
-    # Existing logic for normal queries
-    initialize_assistant()
 
     if is_graph_related(user_query):
         modified_query = f"In page '{page_name}', {user_query}"
