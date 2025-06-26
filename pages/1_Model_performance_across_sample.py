@@ -4,6 +4,7 @@ import os
 import plotly.express as px
 import plotly.graph_objects as go
 import new_app_chatbot  # Assuming this module exists and is correct
+import glob  # Add glob for case-insensitive file searching
 
 # File Path
 DATA_DIR = "data/files_tab_1_2/"
@@ -18,6 +19,34 @@ st.title("📊 Model Performance Analysis")
 col_space1, left_col, col_space2, right_col, col_space3 = st.columns(
     [0.5, 2, 0.5, 6, 0.5]
 )
+
+
+def find_file_case_insensitive(directory, pattern):
+    """
+    Find a file in directory matching pattern (case-insensitive).
+    Returns the actual file path if found, None otherwise.
+    """
+    # Create case-insensitive pattern using glob
+    search_pattern = os.path.join(directory, pattern)
+
+    # Try exact match first
+    if os.path.exists(search_pattern):
+        return search_pattern
+
+    # If exact match fails, try case-insensitive search
+    # Get all files in directory
+    all_files = glob.glob(os.path.join(directory, "*"))
+
+    # Convert pattern to lowercase for comparison
+    pattern_lower = pattern.lower()
+
+    for file_path in all_files:
+        filename = os.path.basename(file_path)
+        if filename.lower() == pattern_lower:
+            return file_path
+
+    return None
+
 
 with left_col:
     st.write("**Model Selection:**")
@@ -128,15 +157,55 @@ with left_col:
             "comb" if nlp_approach == "COMBINED" else nlp_approach.lower()
         )
 
-        file_name_en = f"{nlp_approach_value}_en_{outcome}_{nom_idio_value}.csv"
-        file_name_rf = f"{nlp_approach_value}_rf_{outcome}_{nom_idio_value}.csv"
-        file_path_en = os.path.join(DATA_DIR, file_name_en)
-        file_path_rf = os.path.join(DATA_DIR, file_name_rf)
+        # Try multiple case variations for the NLP approach
+        possible_approaches = [
+            nlp_approach_value,  # lowercase (original)
+            nlp_approach.upper() if nlp_approach != "COMBINED" else "COMB",  # uppercase
+            (
+                nlp_approach.capitalize() if nlp_approach != "COMBINED" else "Comb"
+            ),  # capitalized
+        ]
+
+        file_path_en = None
+        file_path_rf = None
+
+        # Try each case variation until we find the files
+        for approach_variant in possible_approaches:
+            file_name_en = f"{approach_variant}_en_{outcome}_{nom_idio_value}.csv"
+            file_name_rf = f"{approach_variant}_rf_{outcome}_{nom_idio_value}.csv"
+
+            temp_path_en = find_file_case_insensitive(DATA_DIR, file_name_en)
+            temp_path_rf = find_file_case_insensitive(DATA_DIR, file_name_rf)
+
+            # If we found both files with this approach variant, use it
+            if temp_path_en and temp_path_rf:
+                file_path_en = temp_path_en
+                file_path_rf = temp_path_rf
+                break
+            # If we found at least one file, keep it but continue looking for the pair
+            elif temp_path_en and not file_path_en:
+                file_path_en = temp_path_en
+            elif temp_path_rf and not file_path_rf:
+                file_path_rf = temp_path_rf
+
+        # Set the final file names for error messages (use the approach that worked or the original)
+        final_approach = nlp_approach_value
+        if file_path_en:
+            # Extract the approach from the actual filename found
+            actual_filename = os.path.basename(file_path_en)
+            final_approach = actual_filename.split("_")[0]
+        elif file_path_rf:
+            # Extract the approach from the actual filename found
+            actual_filename = os.path.basename(file_path_rf)
+            final_approach = actual_filename.split("_")[0]
+
+        file_name_en = f"{final_approach}_en_{outcome}_{nom_idio_value}.csv"
+        file_name_rf = f"{final_approach}_rf_{outcome}_{nom_idio_value}.csv"
 
         df_en, df_rf = None, None  # Initialize raw loaded dataframes
 
         # Load EN Data
-        if os.path.exists(file_path_en):
+        if file_path_en and os.path.exists(file_path_en):
             try:
                 df_en = pd.read_csv(file_path_en)
                 df_en.columns = df_en.columns.str.lower()
@@ -145,10 +214,12 @@ with left_col:
                     # Filter NA R2 immediately for the final DF
                     df_en_final = df_en.dropna(subset=["r2"]).copy()
                 else:
-                    st.error(f"Column 'r2' not found in {file_name_en}.")
+                    st.error(
+                        f"Column 'r2' not found in {os.path.basename(file_path_en)}."
+                    )
                     df_en = None  # Mark as not loaded successfully
             except Exception as e:
-                st.error(f"Error loading file {file_name_en}: {e}")
+                st.error(f"Error loading file {os.path.basename(file_path_en)}: {e}")
                 df_en = None
         else:
             st.warning(
@@ -156,7 +227,7 @@ with left_col:
             )
 
         # Load RF Data
-        if os.path.exists(file_path_rf):
+        if file_path_rf and os.path.exists(file_path_rf):
             try:
                 df_rf = pd.read_csv(file_path_rf)
                 df_rf.columns = df_rf.columns.str.lower()
@@ -165,10 +236,12 @@ with left_col:
                     # Filter NA R2 immediately for the final DF
                     df_rf_final = df_rf.dropna(subset=["r2"]).copy()
                 else:
-                    st.error(f"Column 'r2' not found in {file_name_rf}.")
+                    st.error(
+                        f"Column 'r2' not found in {os.path.basename(file_path_rf)}."
+                    )
                     df_rf = None  # Mark as not loaded successfully
             except Exception as e:
-                st.error(f"Error loading file {file_name_rf}: {e}")
+                st.error(f"Error loading file {os.path.basename(file_path_rf)}: {e}")
                 df_rf = None
         else:
             st.warning(
@@ -301,8 +374,11 @@ with right_col:
                 )
                 P_below_0_05_en = df_en_final[df_en_final["p_value"] < 0.05].shape[0]
             else:
+                actual_en_filename = (
+                    os.path.basename(file_path_en) if file_path_en else file_name_en
+                )
                 st.warning(
-                    f"Column 'p_value' missing in {file_name_en}, cannot calculate P < 0.05 Count for EN."
+                    f"Column 'p_value' missing in {actual_en_filename}, cannot calculate P < 0.05 Count for EN."
                 )
                 M_SD_en = (
                     f"{df_en_final['r2'].mean():.2f} ({df_en_final['r2'].std():.2f})"
@@ -333,8 +409,11 @@ with right_col:
                 )
                 P_below_0_05_rf = df_rf_final[df_rf_final["p_value"] < 0.05].shape[0]
             else:
+                actual_rf_filename = (
+                    os.path.basename(file_path_rf) if file_path_rf else file_name_rf
+                )
                 st.warning(
-                    f"Column 'p_value' missing in {file_name_rf}, cannot calculate P < 0.05 Count for RF."
+                    f"Column 'p_value' missing in {actual_rf_filename}, cannot calculate P < 0.05 Count for RF."
                 )
                 M_SD_rf = (
                     f"{df_rf_final['r2'].mean():.2f} ({df_rf_final['r2'].std():.2f})"
