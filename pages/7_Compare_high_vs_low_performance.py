@@ -1,331 +1,223 @@
 import streamlit as st
 import pandas as pd
 import os
+import glob
+import plotly.express as px
 import plotly.graph_objects as go
 import new_app_chatbot
 
-# File Paths
+# File Path
 DATA_DIR_1 = "data/files_tab_1_2/"
 DATA_DIR_4 = "data/files_tab_7/"
 
-st.set_page_config(
-    page_title="Feature Importance Analysis", page_icon="📊", layout="wide"
-)
-st.title("🔬 Feature Importance Analysis")
 
+def find_file_case_insensitive(directory, pattern):
+    """
+    Find a file in directory matching pattern (case-insensitive).
+    Returns the actual file path if found, None otherwise.
+    """
+    # Create case-insensitive pattern using glob
+    search_pattern = os.path.join(directory, pattern)
+
+    # Try exact match first
+    if os.path.exists(search_pattern):
+        return search_pattern
+
+    # If exact match fails, try case-insensitive search
+    # Get all files in directory
+    all_files = glob.glob(os.path.join(directory, "*"))
+
+    # Convert pattern to lowercase for comparison
+    pattern_lower = pattern.lower()
+
+    for file_path in all_files:
+        filename = os.path.basename(file_path)
+        if filename.lower() == pattern_lower:
+            return file_path
+
+    return None
+
+
+st.set_page_config(
+    page_title="Compare High vs Low Performance", page_icon="📊", layout="wide"
+)
+
+st.title("📊 Compare High vs Low Performance")
+
+# Center the entire layout
+st.write(
+    "<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True
+)
+
+# Create adjusted layout
 col_space1, left_col, col_space2, right_col, col_space3 = st.columns([1, 2, 1, 6, 1])
 
 with left_col:
     st.write("**Controls:**")
 
-    # Dropdowns
+    # Dropdown Filters
+    outcome = st.selectbox("Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"])
+    outcome = "na" if outcome.lower() == "negative affect" else outcome.lower()
     ml_model = st.selectbox("ML Model", ["Elastic Net (en)", "Random Forest (rf)"])
-    outcome = st.selectbox(
-        "Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]
-    ).lower()
-    outcome = "na" if outcome == "negative affect" else outcome
     ml_model_short = "en" if ml_model == "Elastic Net (en)" else "rf"
 
-    # Checkbox for including 'Time' variable (default: checked)
-    include_time = st.checkbox("Include the variable 'Time'", value=True)
+    # Load performance data with case-insensitive search
+    perf_pattern = f"comb_{ml_model_short}_{outcome}_idiog.csv"
+    perf_file = find_file_case_insensitive(DATA_DIR_1, perf_pattern)
 
-    # Load performance data
-    perf_file = os.path.join(DATA_DIR_1, f"comb_{ml_model_short}_{outcome}_idiog.csv")
-    if os.path.exists(perf_file):
-        perf_df = pd.read_csv(perf_file)
-        perf_df.columns = perf_df.columns.str.lower().str.strip()
-    else:
-        st.error(f"Performance file {perf_file} not found.")
+    if not perf_file:
+        st.error(f"Performance file not found: {perf_pattern}")
         st.stop()
 
-    # Ensure required columns exist
-    if "participant" not in perf_df.columns or "r2" not in perf_df.columns:
-        st.error("Required columns ('participant' or 'r2') are missing in the data.")
+    df_perf = pd.read_csv(perf_file)
+    df_perf.columns = df_perf.columns.str.lower()
+
+    # Ensure 'participant' and 'r2' columns exist
+    if "participant" not in df_perf.columns or "r2" not in df_perf.columns:
+        st.error("Required columns ('participant' or 'r2') are missing.")
         st.stop()
 
-    # Drop NaN values and convert to numeric
-    perf_df = perf_df.dropna(subset=["participant", "r2"])
-    perf_df["participant"] = perf_df["participant"].astype(str)
-    perf_df["r2"] = pd.to_numeric(perf_df["r2"], errors="coerce")
+    # Clean and process data
+    df_perf = df_perf.dropna(subset=["r2"])
+    df_perf["r2"] = pd.to_numeric(df_perf["r2"], errors="coerce")
+    df_perf = df_perf.dropna(subset=["r2"])
 
-    # Slider for selecting percentage of participants (10% - 50% in 5% steps)
-    total_participants = len(perf_df)
-    percentage_options = list(range(10, 51, 5))  # [10, 15, 20, ..., 50]
-    percentage = st.select_slider(
-        "Percentage of Participants in Each Group", options=percentage_options, value=25
-    )
-
-    # Calculate number of participants based on selected percentage
-    num_of_participants = max(
-        1, int((percentage / 100) * total_participants)
-    )  # Ensure at least 1 participant
-
-    tooltip_html = f"""
-    <style>
-        .tooltip-container {{
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 14px;
-        }}
-        .tooltip {{
-            position: relative;
-            display: inline-block;
-            cursor: pointer;
-        }}
-        .tooltip .tooltip-text {{
-            visibility: hidden;
-            width: 220px;
-            background-color: #555;
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 5px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -110px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }}
-        .tooltip-container:hover .tooltip-text {{
-            visibility: visible;
-            opacity: 1;
-        }}
-        .tooltip svg {{
-            fill: #007BFF;
-            width: 18px;
-            height: 18px;
-        }}
-    </style>
-    <div class="tooltip-container">
-        <span>Selected Participants</span>
-        <div class="tooltip">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
-                <g fill="none">
-                    <path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/>
-                    <path fill="currentColor" d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12S6.477 2 12 2m0 2a8 8 0 1 0 0 16a8 8 0 0 0 0-16m-.01 6c.558 0 1.01.452 1.01 1.01v5.124A1 1 0 0 1 12.5 18h-.49A1.01 1.01 0 0 1 11 16.99V12a1 1 0 1 1 0-2zM12 7a1 1 0 1 1 0 2a1 1 0 0 1 0-2"/>
-                </g>
-            </svg>
-            <span class="tooltip-text">🔢 Selected: {percentage}% → {num_of_participants} participants per group</span>
-        </div>
-    </div>
-    """
-
-    # Render styled label above the slider
-    st.markdown(tooltip_html, unsafe_allow_html=True)
-
-    # Slider dynamically adjusts based on `num_of_participants`
-    st.write("")  # Add space for better alignment
-    min_part_var = st.slider(
-        "Minimum Number of Participants per Variable",
-        0,
-        num_of_participants,
-        min(2, num_of_participants),
-        step=1,
-    )
-
-    # Sort participants based on R²
-    highest_r2 = perf_df.nlargest(num_of_participants, "r2")["participant"].tolist()
-    lowest_r2 = perf_df.nsmallest(num_of_participants, "r2")["participant"].tolist()
-
-    # Load feature importance data
-    feature_file = os.path.join(
-        DATA_DIR_4, f"Featureimportance_{ml_model_short}_comb_{outcome}_abs.csv"
-    )
-    if os.path.exists(feature_file):
-        feature_df = pd.read_csv(feature_file, encoding="ISO-8859-1")
-        feature_df.columns = feature_df.columns.str.lower().str.strip()
-    else:
-        st.error(f"Feature importance file {feature_file} not found.")
+    if df_perf.empty:
+        st.error("No valid R² data available.")
         st.stop()
 
-    # Ensure required columns exist
-    if "participant" not in feature_df.columns or "variable" not in feature_df.columns:
-        st.error(
-            "Required columns ('participant' or 'variable') are missing in the data."
-        )
+    # Threshold Input (Dynamic)
+    min_r2 = float(df_perf["r2"].min())
+    max_r2 = float(df_perf["r2"].max())
+    median_r2 = float(df_perf["r2"].median())
+
+    threshold = st.slider(
+        "R² Threshold",
+        min_value=min_r2,
+        max_value=max_r2,
+        value=median_r2,
+        step=0.01,
+        format="%.2f",
+    )
+
+    # Categorize participants
+    high_performance = df_perf[df_perf["r2"] >= threshold]["participant"].tolist()
+    low_performance = df_perf[df_perf["r2"] < threshold]["participant"].tolist()
+
+    # Display counts
+    st.write(f"**High Performance (R² ≥ {threshold:.2f}):** {len(high_performance)}")
+    st.write(f"**Low Performance (R² < {threshold:.2f}):** {len(low_performance)}")
+
+    if not high_performance or not low_performance:
+        st.warning("At least one group has no participants. Adjust the threshold.")
         st.stop()
-
-    # If not including 'Time', filter out rows where variable is 'time' (case-insensitive)
-    if not include_time:
-        feature_df = feature_df[~feature_df["variable"].str.lower().eq("time")]
-
-    # If available, process NLP information for coloring y-axis labels
-    if "nlp" in feature_df.columns:
-        feature_df["nlp"] = feature_df["nlp"].str.lower()
-        nlp_methods = (
-            feature_df.drop_duplicates("variable")
-            .set_index("variable")["nlp"]
-            .to_dict()
-        )
-    else:
-        nlp_methods = {}
-
-    color_map = {
-        "liwc": "red",
-        "gpt": "blue",
-        "vader": "green",
-        "text length": "black",
-        "time": "purple",
-        "lda": "orange",
-        "text feature": "brown",
-    }
-
-    # Keep only selected participants
-    feature_df = feature_df[
-        feature_df["participant"].astype(str).isin(highest_r2 + lowest_r2)
-    ]
-
-    # Count occurrences of each variable
-    var_counts = feature_df["variable"].value_counts()
-    valid_vars = var_counts[var_counts >= min_part_var].index.tolist()
-
-    # Filter feature dataframe
-    feature_df = feature_df[feature_df["variable"].isin(valid_vars)]
-
-    # Convert numeric columns to absolute values
-    numeric_cols = feature_df.select_dtypes(include=["number"]).columns
-    feature_df[numeric_cols] = feature_df[numeric_cols].abs()
-
-    # Compute absolute mean for each group
-    high_r2_df = (
-        feature_df[feature_df["participant"].astype(str).isin(highest_r2)]
-        .groupby("variable")[numeric_cols]
-        .mean()
-        .mean(axis=1)
-    )
-    low_r2_df = (
-        feature_df[feature_df["participant"].astype(str).isin(lowest_r2)]
-        .groupby("variable")[numeric_cols]
-        .mean()
-        .mean(axis=1)
-    )
-
-    # Merge into a DataFrame and compute absolute mean difference
-    abs_mean_df = pd.DataFrame({"High R²": high_r2_df, "Low R²": low_r2_df}).fillna(0)
-    abs_mean_df["Abs Mean Diff"] = abs(abs_mean_df["High R²"] - abs_mean_df["Low R²"])
-
-    # For the first graph, sort by High R² (descending)
-    abs_mean_df_sorted_high = abs_mean_df.nlargest(20, "High R²").sort_values(
-        "High R²", ascending=False
-    )
-
-    # For the second graph, sort by Abs Mean Diff (descending)
-    abs_mean_df_sorted_diff = abs_mean_df.nlargest(20, "Abs Mean Diff").sort_values(
-        "Abs Mean Diff", ascending=False
-    )
 
 with right_col:
-    if not abs_mean_df_sorted_high.empty:
-        # Generate colored tick labels for first graph based on NLP methods
-        colors_high = [
-            color_map.get(nlp_methods.get(var, "text length"), "black")
-            for var in abs_mean_df_sorted_high.index
-        ]
-        tick_text_high = [
-            f'<span style="color:{color}">{var}</span>'
-            for var, color in zip(abs_mean_df_sorted_high.index, colors_high)
-        ]
+    st.write("")  # Spacer
 
-        # First Graph: High vs. Low R² Groups
-        fig = go.Figure()
+    # Load feature importance data with case-insensitive search
+    feat_pattern = f"Featureimportance_{ml_model_short}_comb_{outcome}_abs.csv"
+    feat_file = find_file_case_insensitive(DATA_DIR_4, feat_pattern)
 
-        fig.add_trace(
-            go.Bar(
-                y=abs_mean_df_sorted_high.index,
-                x=abs_mean_df_sorted_high["High R²"],
-                orientation="h",
-                name="High R²",
-                marker=dict(color="red"),
-            )
+    if not feat_file:
+        st.error(f"Feature importance file not found: {feat_pattern}")
+        st.stop()
+
+    df_feat = pd.read_csv(feat_file, encoding="ISO-8859-1")
+    df_feat.columns = df_feat.columns.str.lower()
+
+    # Check required columns
+    if not all(
+        col in df_feat.columns for col in ["participant", "variable", "importance"]
+    ):
+        st.error(
+            "Required columns ('participant', 'variable', 'importance') are missing from feature importance file."
         )
+        st.stop()
 
-        fig.add_trace(
-            go.Bar(
-                y=abs_mean_df_sorted_high.index,
-                x=abs_mean_df_sorted_high["Low R²"],
-                orientation="h",
-                name="Low R²",
-                marker=dict(color="turquoise"),
-            )
-        )
+    # Normalize participant column
+    df_feat["participant"] = df_feat["participant"].astype(str)
+    high_performance = [str(p) for p in high_performance]
+    low_performance = [str(p) for p in low_performance]
 
-        fig.update_layout(
-            title="Feature Importance (Top 20): High vs. Low R² Groups",
-            xaxis_title="Absolute Mean Value",
-            yaxis_title="Features",
-            barmode="group",
-            height=600,
-            template="plotly_white",
-            legend_title_text="R² Groups",
-            legend=dict(orientation="v", yanchor="top", xanchor="center", x=1),
-            yaxis=dict(
-                autorange="reversed",
-                tickmode="array",
-                tickvals=list(abs_mean_df_sorted_high.index),
-                ticktext=tick_text_high,
-            ),
-        )
+    # Filter data by performance groups
+    df_high = df_feat[df_feat["participant"].isin(high_performance)]
+    df_low = df_feat[df_feat["participant"].isin(low_performance)]
 
-        st.plotly_chart(fig)
+    if df_high.empty or df_low.empty:
+        st.error("No feature data available for one or both performance groups.")
+        st.stop()
 
-        # Generate colored tick labels for second graph based on NLP methods
-        colors_diff = [
-            color_map.get(nlp_methods.get(var, "text length"), "black")
-            for var in abs_mean_df_sorted_diff.index
-        ]
-        tick_text_diff = [
-            f'<span style="color:{color}">{var}</span>'
-            for var, color in zip(abs_mean_df_sorted_diff.index, colors_diff)
-        ]
+    # Calculate mean absolute feature importance for each group
+    mean_high = df_high.groupby("variable")["importance"].mean().reset_index()
+    mean_low = df_low.groupby("variable")["importance"].mean().reset_index()
+    mean_high.columns = ["Variable", "High_Performance"]
+    mean_low.columns = ["Variable", "Low_Performance"]
 
-        # Second Graph: Difference in Absolute Mean between High and Low R² Groups
-        fig2 = go.Figure()
+    # Merge and calculate difference
+    merged = pd.merge(mean_high, mean_low, on="Variable", how="outer").fillna(0)
+    merged["Difference"] = merged["High_Performance"] - merged["Low_Performance"]
 
-        fig2.add_trace(
-            go.Bar(
-                y=abs_mean_df_sorted_diff.index,
-                x=abs_mean_df_sorted_diff["Abs Mean Diff"],
-                orientation="h",
-                name="Abs Mean Difference",
-                marker=dict(color="gray"),
-            )
-        )
-
-        fig2.update_layout(
-            title="Difference (Top 20): High vs. Low R² Groups",
-            xaxis_title="Absolute Mean Difference",
-            yaxis_title="Features",
-            height=600,
-            template="plotly_white",
-            yaxis=dict(
-                autorange="reversed",
-                tickmode="array",
-                tickvals=list(abs_mean_df_sorted_diff.index),
-                ticktext=tick_text_diff,
-            ),
-        )
-
-        st.plotly_chart(fig2)
-    else:
-        st.warning("No variables met the filtering criteria.")
-    legend_items = []
-    for method, color in color_map.items():
-        legend_items.append(
-            f'<span style="color: {color}; font-weight: bold;">■</span> {method.upper()}'
-        )
-    legend_html = "    ".join(legend_items)
-    st.markdown(
-        f"""
-        <div style="font-size: 12px; margin-top: 10px;">
-            <strong>NLP Methods:</strong><br>
-            {legend_html}
-        </div>
-        """,
-        unsafe_allow_html=True,
+    # Sort by absolute difference
+    merged = merged.reindex(
+        merged["Difference"].abs().sort_values(ascending=False).index
     )
 
+    # Take top 20 features
+    top_features = merged.head(20)
+
+    if top_features.empty:
+        st.error("No feature differences to display.")
+        st.stop()
+
+    # Create horizontal bar chart
+    fig = go.Figure()
+
+    # Add bars for high performance
+    fig.add_trace(
+        go.Bar(
+            y=top_features["Variable"],
+            x=top_features["High_Performance"],
+            name=f"High Performance (≥{threshold:.2f})",
+            orientation="h",
+            marker_color="green",
+            opacity=0.7,
+        )
+    )
+
+    # Add bars for low performance
+    fig.add_trace(
+        go.Bar(
+            y=top_features["Variable"],
+            x=top_features["Low_Performance"],
+            name=f"Low Performance (<{threshold:.2f})",
+            orientation="h",
+            marker_color="red",
+            opacity=0.7,
+        )
+    )
+
+    # Update layout
+    fig.update_layout(
+        title=f"Top 20 Feature Importance Differences: High vs Low R² Performance",
+        xaxis_title="Mean Absolute SHAP Value",
+        yaxis_title="Features",
+        template="plotly_white",
+        height=800,
+        barmode="group",
+        yaxis=dict(categoryorder="total ascending"),
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Display data table
+    st.write("### Feature Importance Comparison Table")
+    st.dataframe(
+        top_features[["Variable", "High_Performance", "Low_Performance", "Difference"]],
+        height=400,
+    )
+
+st.write("</div>", unsafe_allow_html=True)
+
 # Add the chatbot to the page
-new_app_chatbot.show_chatbot_ui(page_name="Feature Importance Analysis")
+new_app_chatbot.show_chatbot_ui(page_name="Compare High vs Low Performance")

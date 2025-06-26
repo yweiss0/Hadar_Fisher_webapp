@@ -1,227 +1,243 @@
 import streamlit as st
 import pandas as pd
 import os
-import plotly.express as px
+import glob
 import new_app_chatbot
 
 # File Path
 DATA_DIR = "data/files_tab_4/"
 
-st.set_page_config(
-    page_title="Feature Importance Visualization", page_icon="📊", layout="wide"
-)
-st.title("💡 Common Top Predictive Features")
 
-# Layout: Sidebar (1/4 width) for controls, Main area (3.5/4 width) for graphs
-left_col, spacer_col, right_col = st.columns([1, 0.5, 3])
+def find_file_case_insensitive(directory, pattern):
+    """
+    Find a file in directory matching pattern (case-insensitive).
+    Returns the actual file path if found, None otherwise.
+    """
+    # Create case-insensitive pattern using glob
+    search_pattern = os.path.join(directory, pattern)
+
+    # Try exact match first
+    if os.path.exists(search_pattern):
+        return search_pattern
+
+    # If exact match fails, try case-insensitive search
+    # Get all files in directory
+    all_files = glob.glob(os.path.join(directory, "*"))
+
+    # Convert pattern to lowercase for comparison
+    pattern_lower = pattern.lower()
+
+    for file_path in all_files:
+        filename = os.path.basename(file_path)
+        if filename.lower() == pattern_lower:
+            return file_path
+
+    return None
+
+
+st.set_page_config(
+    page_title="Common Top Predictive Features", page_icon="📊", layout="wide"
+)
+
+st.title("🔝 Common Top Predictive Features Across Participants")
+
+# Center the entire layout
+st.write(
+    "<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True
+)
+
+# Create adjusted layout
+col_space1, left_col, col_space2, right_col, col_space3 = st.columns([1, 2, 1, 6, 1])
 
 with left_col:
-    st.write("### Controls")
+    st.write("**Controls:**")
 
-    # Model selection dropdown
-    ml_model = st.selectbox("Model", ["Elastic Net (EN)", "Random Forest (RF)"])
-    ml_model_short = "en" if ml_model == "Elastic Net (EN)" else "rf"
-
-    # Sliders for user input
-    num_features = st.slider("Number of Features per Participant", 5, 20, 10)
-    num_variables = st.slider("Number of Variables in Figure", 5, 20, 10)
-    shap_threshold = st.slider("SHAP Value Threshold", 0.001, 0.05, 0.01, step=0.001)
-
-    # Checkbox for ABS values
-    use_abs = st.checkbox("Use absolute values", value=False)
-    # tooltip for ABS values
-
-    st.markdown(
-        """
-    <style>
-        .tooltip-container {
-            display: inline-block;
-            position: relative;
-        }
-        .tooltip-container .tooltip-text {
-            visibility: hidden;
-            width: 350px;
-            background-color: #555;
-            color: #fff;
-            text-align: left;
-            border-radius: 6px;
-            padding: 8px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -175px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 14px;
-        }
-        .tooltip-container:hover .tooltip-text {
-            visibility: visible;
-            opacity: 1;
-        }
-    </style>
-    <div style="font-size: 12px; margin-top: 5px; padding: 8px; border-radius: 5px; background-color: #f0f2f6;">
-        <b>General Rule:</b> Choose absolute values for feature ranking and non-absolute values for understanding directional effects.
-        <span class="tooltip-container" style="margin-left: 10px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
-                <g fill="none">
-                    <path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/>
-                    <path fill="currentColor" d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12S6.477 2 12 2m0 2a8 8 0 1 0 0 16a8 8 0 0 0 0-16m-.01 6c.558 0 1.01.452 1.01 1.01v5.124A1 1 0 0 1 12.5 18h-.49A1.01 1.01 0 0 1 11 16.99V12a1 1 0 1 1 0-2zM12 7a1 1 0 1 1 0 2a1 1 0 0 1 0-2"/>
-                </g>
-            </svg>
-            <span class="tooltip-text">
-                <b>Absolute SHAP Values:</b> Show overall importance of each feature in predicting negative affect, regardless of whether the feature's impact increases or decreases negative affect. Use this to understand which features are most influential in the model's predictions, regardless of direction. <br>
-                <b>Non-Absolute SHAP Values:</b> Show whether a feature predicts higher or lower negative affect. Use this if you need to interpret how each feature affects the predicted outcome (increasing or decreasing negative affect).
-            </span>
-        </span>
-    </div>
-    """,
-        unsafe_allow_html=True,
+    # Dropdown Filters
+    selected_emotion = st.selectbox(
+        "Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]
+    )
+    selected_emotion = (
+        "na"
+        if selected_emotion.lower() == "negative affect"
+        else selected_emotion.lower()
     )
 
+    ml_model = st.selectbox("ML Model", ["Elastic Net (en)", "Random Forest (rf)"])
+    ml_model_short = "en" if ml_model == "Elastic Net (en)" else "rf"
+
+    # Checkbox for absolute values
+    use_abs = st.checkbox("Use absolute values", value=True)
+
+    # Threshold input for feature importance
+    threshold = st.number_input(
+        "Feature Importance Threshold",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.0,
+        step=0.001,
+    )
+
+    # Top N features input
+    top_n = st.number_input(
+        "Top N Features per Participant", min_value=1, max_value=50, value=5, step=1
+    )
+
+    # Minimum participant count input
+    min_participants = st.number_input(
+        "Minimum Participants (for a feature to be considered common)",
+        min_value=1,
+        max_value=100,
+        value=5,
+        step=1,
+    )
+
+with right_col:
+    st.write("")  # Spacer
+
+    # Load data with case-insensitive search
     if use_abs:
-        DATA_DIR = "data/files_tab_7/"
-
-    # Load and filter data
-    csv_files = [
-        f for f in os.listdir(DATA_DIR) if f.endswith(".csv") and ml_model_short in f
-    ]
-
-    # List of predefined emotions
-    emotions = ["na", "sad", "angry", "nervous"]
-
-# Define NLP color map (same as in page 5)
-color_map = {
-    "liwc": "red",
-    "gpt": "blue",
-    "vader": "green",
-    "text length": "black",
-    "time": "purple",
-    "lda": "orange",
-    "text feature": "brown",
-}
-
-# Create plots for each emotion
-figs = []
-for selected_emotion in emotions:
-    if use_abs:
-        file_name = (
+        file_pattern = (
             f"Featureimportance_{ml_model_short}_comb_{selected_emotion}_abs.csv"
         )
     else:
-        file_name = f"Featureimportance_{ml_model_short}_comb_{selected_emotion}.csv"
-    file_path = os.path.join(DATA_DIR, file_name)
+        file_pattern = f"Featureimportance_{ml_model_short}_comb_{selected_emotion}.csv"
 
-    if not os.path.exists(file_path):
-        st.error(f"File not found: {file_name}")
-        continue
+    file_path = find_file_case_insensitive(DATA_DIR, file_pattern)
 
+    if not file_path:
+        st.error(f"File not found: {file_pattern}")
+        st.stop()
+
+    # Load the data
     df = pd.read_csv(file_path, encoding="ISO-8859-1")
     df.columns = df.columns.str.lower()
 
-    if (
-        "participant" not in df.columns
-        or "variable" not in df.columns
-        or "importance" not in df.columns
-    ):
-        st.error("Missing required columns in the CSV file")
-        continue
+    # Check for required columns
+    required_columns = ["participant", "variable", "importance"]
+    if not all(col in df.columns for col in required_columns):
+        st.error(f"Required columns {required_columns} not found in the data.")
+        st.stop()
 
-    # If available, process the NLP column for coloring
-    if "nlp" in df.columns:
-        df["nlp"] = df["nlp"].str.lower()
-        nlp_methods = (
-            df.drop_duplicates("variable").set_index("variable")["nlp"].to_dict()
-        )
+    # Clean the data
+    df["importance"] = pd.to_numeric(df["importance"], errors="coerce")
+    df = df.dropna(subset=["importance"])
+
+    # Apply threshold filter
+    if use_abs:
+        df_filtered = df[df["importance"].abs() >= threshold]
     else:
-        nlp_methods = {}
+        df_filtered = df[df["importance"] >= threshold]
 
-    df = df[df["importance"].abs() > shap_threshold]
+    if df_filtered.empty:
+        st.warning("No data meets the specified threshold.")
+        st.stop()
 
-    # Select top N most important features per participant
-    df = (
-        df.groupby(["participant"])
-        .apply(lambda x: x.nlargest(num_features, "importance"))
-        .reset_index(drop=True)
-    )
+    # Get top N features per participant
+    top_features_per_participant = []
+    for participant in df_filtered["participant"].unique():
+        participant_data = df_filtered[df_filtered["participant"] == participant]
 
-    # Compute percentage of participants for each variable
-    df_count = (
-        df.groupby(["variable", df["importance"] > 0])["participant"]
-        .nunique()
-        .reset_index()
-    )
-    df_count.columns = ["variable", "positive", "count"]
-    df_count["shap_sign"] = df_count["positive"].replace(
-        {True: "Positive", False: "Negative"}
-    )
+        if use_abs:
+            # Sort by absolute value of importance
+            top_features = participant_data.nlargest(top_n, "importance")
+        else:
+            # Sort by importance value
+            top_features = participant_data.nlargest(top_n, "importance")
 
-    # Filter for top variables across all participants
-    top_variables = (
-        df_count.groupby("variable")["count"].sum().nlargest(num_variables).index
-    )
-    df_filtered = df_count[df_count["variable"].isin(top_variables)]
-    if selected_emotion == "na":
-        emotion_title = "Negative Affect"
+        top_features_per_participant.append(top_features)
+
+    # Combine all top features
+    if top_features_per_participant:
+        all_top_features = pd.concat(top_features_per_participant, ignore_index=True)
     else:
-        emotion_title = selected_emotion.capitalize()
+        st.warning("No top features found.")
+        st.stop()
 
-    # Plot with Plotly Express
+    # Count how many participants use each feature
+    feature_counts = all_top_features["variable"].value_counts()
+
+    # Filter features that appear in at least min_participants
+    common_features = feature_counts[feature_counts >= min_participants]
+
+    if common_features.empty:
+        st.warning(f"No features appear in at least {min_participants} participants.")
+        st.stop()
+
+    # Create a detailed analysis
+    common_features_df = pd.DataFrame(
+        {
+            "Feature": common_features.index,
+            "Participant_Count": common_features.values,
+            "Percentage_of_Participants": (
+                common_features.values / len(df_filtered["participant"].unique()) * 100
+            ).round(2),
+        }
+    )
+
+    # Calculate average importance for each common feature
+    avg_importance = []
+    std_importance = []
+    for feature in common_features_df["Feature"]:
+        feature_data = all_top_features[all_top_features["variable"] == feature][
+            "importance"
+        ]
+        avg_importance.append(feature_data.mean())
+        std_importance.append(feature_data.std())
+
+    common_features_df["Average_Importance"] = avg_importance
+    common_features_df["Std_Importance"] = std_importance
+
+    # Sort by participant count (descending)
+    common_features_df = common_features_df.sort_values(
+        "Participant_Count", ascending=False
+    )
+
+    st.write("### Common Top Predictive Features")
+    st.write(f"**Total Participants:** {len(df_filtered['participant'].unique())}")
+    st.write(f"**Features shown:** Top {top_n} per participant")
+    st.write(f"**Minimum participants:** {min_participants}")
+    st.write(f"**Threshold:** {threshold}")
+
+    # Display the results table
+    st.dataframe(common_features_df.round(4), height=600, use_container_width=True)
+
+    # Create a bar chart
+    import plotly.express as px
+
     fig = px.bar(
-        df_filtered,
-        x="count",
-        y="variable",
-        color="shap_sign",
+        common_features_df.head(20),  # Show top 20 most common features
+        x="Participant_Count",
+        y="Feature",
+        title="Top 20 Most Common Predictive Features Across Participants",
+        labels={"Participant_Count": "Number of Participants", "Feature": "Features"},
         orientation="h",
-        title=f"Top {num_variables} Variables for {emotion_title} (Model: {ml_model})",
-        labels={
-            "count": "Percent of Participants",
-            "variable": "Feature",
-            "shap_sign": "SHAP Sign",
-        },
-        barmode="stack",
-        color_discrete_map={"Positive": "rgb(0,182,185)", "Negative": "rgb(255,79,82)"},
     )
 
-    # Update y-axis tick labels with colored HTML if NLP mapping exists
-    categories = list(df_filtered["variable"].unique())
-    tick_text = [
-        f'<span style="color:{color_map.get(nlp_methods.get(var, "text length"), "black")}">{var}</span>'
-        for var in categories
-    ]
-    fig.update_yaxes(tickmode="array", tickvals=categories, ticktext=tick_text)
+    fig.update_layout(
+        height=600, yaxis={"categoryorder": "total ascending"}, template="plotly_white"
+    )
 
-    figs.append(fig)
+    st.plotly_chart(fig, use_container_width=True)
 
-# Display figures in a 2x2 grid
-with right_col:
-    row1_col1, row1_col2 = st.columns(2)
-    row2_col1, row2_col2 = st.columns(2)
+    # Summary statistics
+    st.write("### Summary Statistics")
+    col1, col2, col3 = st.columns(3)
 
-    if len(figs) > 0:
-        row1_col1.plotly_chart(figs[0], use_container_width=True)
-    if len(figs) > 1:
-        row1_col2.plotly_chart(figs[1], use_container_width=True)
-    if len(figs) > 2:
-        row2_col1.plotly_chart(figs[2], use_container_width=True)
-    if len(figs) > 3:
-        row2_col2.plotly_chart(figs[3], use_container_width=True)
+    with col1:
+        st.metric("Total Common Features", len(common_features_df))
 
-    # Add NLP method legend below the plots
-    legend_items = []
-    for method, color in color_map.items():
-        legend_items.append(
-            f'<span style="color: {color}; font-weight: bold;">■</span> {method.upper()}'
+    with col2:
+        st.metric(
+            "Most Common Feature Count", common_features_df["Participant_Count"].max()
         )
-    legend_html = "    ".join(legend_items)
-    st.markdown(
-        f"""
-        <div style="font-size: 12px; margin-top: 10px;">
-            <strong>NLP Methods:</strong><br>
-            {legend_html}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+
+    with col3:
+        st.metric(
+            "Average Participants per Feature",
+            round(common_features_df["Participant_Count"].mean(), 1),
+        )
+
+st.write("</div>", unsafe_allow_html=True)
+
 # Add the chatbot to the page
 new_app_chatbot.show_chatbot_ui(page_name="Common Top Predictive Features")

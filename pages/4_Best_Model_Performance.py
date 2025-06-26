@@ -1,11 +1,40 @@
 import streamlit as st
 import pandas as pd
 import os
+import glob
 import plotly.express as px
 import new_app_chatbot
 
 # File Path
 DATA_DIR = "data/files_tab_1_2/"
+
+
+def find_file_case_insensitive(directory, pattern):
+    """
+    Find a file in directory matching pattern (case-insensitive).
+    Returns the actual file path if found, None otherwise.
+    """
+    # Create case-insensitive pattern using glob
+    search_pattern = os.path.join(directory, pattern)
+
+    # Try exact match first
+    if os.path.exists(search_pattern):
+        return search_pattern
+
+    # If exact match fails, try case-insensitive search
+    # Get all files in directory
+    all_files = glob.glob(os.path.join(directory, "*"))
+
+    # Convert pattern to lowercase for comparison
+    pattern_lower = pattern.lower()
+
+    for file_path in all_files:
+        filename = os.path.basename(file_path)
+        if filename.lower() == pattern_lower:
+            return file_path
+
+    return None
+
 
 st.set_page_config(
     page_title="Best Model Performance per Participant", page_icon="📊", layout="wide"
@@ -41,8 +70,8 @@ with left_col:
     all_data = []
 
     for ml_model_short in ml_model_list:
-        # Define file names
-        file_patterns = [
+        # Define file patterns with case variations
+        base_patterns = [
             f"comb_{ml_model_short}_{outcome}_idiog.csv",
             f"comb_{ml_model_short}_{outcome}_nomot.csv",
             f"LDA_{ml_model_short}_{outcome}_idiog.csv",
@@ -52,17 +81,18 @@ with left_col:
             "modelfit_gpt_all.csv",
         ]
 
-        for file_name in file_patterns:
-            file_path = os.path.join(DATA_DIR, file_name)
+        for pattern in base_patterns:
+            file_path = find_file_case_insensitive(DATA_DIR, pattern)
 
-            if os.path.exists(file_path):
+            if file_path:
+                file_name = os.path.basename(file_path)
                 df = pd.read_csv(file_path)
                 df.columns = df.columns.str.lower()
 
                 if df.columns[0].startswith("unnamed"):
                     df = df.iloc[:, 1:]
 
-                if file_name == "modelfit_gpt_all.csv":
+                if file_name.lower() == "modelfit_gpt_all.csv":
                     if "emotion_affect" not in df.columns:
                         st.error("Column 'emotion_affect' not found in GPT file.")
                         st.stop()
@@ -76,13 +106,19 @@ with left_col:
                     df["nomot_idiog"] = "N/A (LLM Ratings)"
                     nlp_approach = "GPT"
                 else:
-                    nlp_approach = (
-                        "comb"
-                        if "comb" in file_name
-                        else "LDA" if "LDA" in file_name else "LIWC"
-                    )
+                    # Extract NLP approach from actual filename (case-insensitive)
+                    filename_lower = file_name.lower()
+                    if "comb" in filename_lower:
+                        nlp_approach = "comb"
+                    elif "lda" in filename_lower:
+                        nlp_approach = "LDA"
+                    elif "liwc" in filename_lower:
+                        nlp_approach = "LIWC"
+                    else:
+                        nlp_approach = "unknown"
+
                     nomot_idiog = (
-                        "Nomothetic" if "nomot" in file_name else "Idiographic"
+                        "Nomothetic" if "nomot" in filename_lower else "Idiographic"
                     )
                     df["nomot_idiog"] = nomot_idiog
 
@@ -90,11 +126,11 @@ with left_col:
                 df["source_file"] = file_name
 
                 # Add ML model column only if including both models
-                if include_both and file_name != "modelfit_gpt_all.csv":
+                if include_both and file_name.lower() != "modelfit_gpt_all.csv":
                     df["ml_model"] = (
                         "Elastic Net" if ml_model_short == "en" else "Random Forest"
                     )
-                elif include_both and file_name == "modelfit_gpt_all.csv":
+                elif include_both and file_name.lower() == "modelfit_gpt_all.csv":
                     df["ml_model"] = "N/A (GPT)"
 
                 required_columns = [
@@ -151,10 +187,11 @@ with left_col:
         rename_map["ml_model"] = "ML Model"
     best_performance_df = best_performance_df.rename(columns=rename_map)
 
-    counts_file = f"comb_{ml_model_list[0]}_{outcome}_nomot.csv"
-    counts_path = os.path.join(DATA_DIR, counts_file)
+    # Use case-insensitive search for counts file too
+    counts_pattern = f"comb_{ml_model_list[0]}_{outcome}_nomot.csv"
+    counts_path = find_file_case_insensitive(DATA_DIR, counts_pattern)
 
-    if os.path.exists(counts_path):
+    if counts_path and os.path.exists(counts_path):
         counts_df = pd.read_csv(counts_path)
         counts_df.columns = counts_df.columns.str.lower()
 
@@ -172,11 +209,14 @@ with left_col:
                 counts_df, on="Participant", how="left"
             )
         else:
+            counts_filename = (
+                os.path.basename(counts_path) if counts_path else counts_pattern
+            )
             st.warning(
-                f"Could not find required columns in {counts_file}. 'Counts' column will be missing."
+                f"Could not find required columns in {counts_filename}. 'Counts' column will be missing."
             )
     else:
-        st.warning(f"File {counts_file} not found. 'Counts' column will be missing.")
+        st.warning(f"File {counts_pattern} not found. 'Counts' column will be missing.")
 
     best_performance_df["Counts"] = best_performance_df["Counts"].fillna(0).astype(int)
     best_performance_df = best_performance_df.sort_values("Participant", ascending=True)

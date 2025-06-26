@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import glob
 import plotly.graph_objects as go
 import new_app_chatbot
 import numpy as np  # Needed for dynamic range options
@@ -8,6 +9,34 @@ import numpy as np  # Needed for dynamic range options
 # File Path
 DATA_DIR = "data/files_tab_4/"
 METRICS_DIR = "data/files_tab_1_2/"  # Directory for R² and RMSE values
+
+
+def find_file_case_insensitive(directory, pattern):
+    """
+    Find a file in directory matching pattern (case-insensitive).
+    Returns the actual file path if found, None otherwise.
+    """
+    # Create case-insensitive pattern using glob
+    search_pattern = os.path.join(directory, pattern)
+
+    # Try exact match first
+    if os.path.exists(search_pattern):
+        return search_pattern
+
+    # If exact match fails, try case-insensitive search
+    # Get all files in directory
+    all_files = glob.glob(os.path.join(directory, "*"))
+
+    # Convert pattern to lowercase for comparison
+    pattern_lower = pattern.lower()
+
+    for file_path in all_files:
+        filename = os.path.basename(file_path)
+        if filename.lower() == pattern_lower:
+            return file_path
+
+    return None
+
 
 st.set_page_config(
     page_title="Feature Importance Visualization", page_icon="📊", layout="wide"
@@ -111,14 +140,14 @@ with right_col:
     st.write("")
     include_time = st.checkbox("Include the variable 'Time'", value=True)
 
-    # File selection based on user inputs
+    # File selection based on user inputs with case-insensitive search
     if use_abs:
         file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}_abs.csv"
     else:
         file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}.csv"
-    file_path = os.path.join(DATA_DIR, file_name)
+    file_path = find_file_case_insensitive(DATA_DIR, file_name)
 
-    if not os.path.exists(file_path):
+    if not file_path:
         st.error(f"File not found: {file_name}")
         st.stop()
 
@@ -153,14 +182,14 @@ with right_col:
     # Dropdown for selecting a single participant
     selected_participant = st.selectbox("Select a Participant", participants)
 
-    # Load performance metrics file
+    # Load performance metrics file with case-insensitive search
     fixed_outcome = "angry" if outcome == "anger" else outcome
     metrics_file_name = f"comb_{ml_model_short}_{fixed_outcome}_idiog.csv"
-    metrics_file_path = os.path.join(METRICS_DIR, metrics_file_name)
+    metrics_file_path = find_file_case_insensitive(METRICS_DIR, metrics_file_name)
 
     r2_value, rmse_value = None, None
 
-    if os.path.exists(metrics_file_path):
+    if metrics_file_path and os.path.exists(metrics_file_path):
         df_metrics = pd.read_csv(metrics_file_path, encoding="ISO-8859-1")
         df_metrics.columns = df_metrics.columns.str.lower()
         required_metrics_columns = ["participant", "r2", "rmse"]

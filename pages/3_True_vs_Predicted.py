@@ -3,11 +3,39 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import os
+import glob
 import new_app_chatbot
 
 
 # File Path
 DATA_DIR = "data/files_tab_3/"
+
+
+def find_file_case_insensitive(directory, pattern):
+    """
+    Find a file in directory matching pattern (case-insensitive).
+    Returns the actual file path if found, None otherwise.
+    """
+    # Create case-insensitive pattern using glob
+    search_pattern = os.path.join(directory, pattern)
+
+    # Try exact match first
+    if os.path.exists(search_pattern):
+        return search_pattern
+
+    # If exact match fails, try case-insensitive search
+    # Get all files in directory
+    all_files = glob.glob(os.path.join(directory, "*"))
+
+    # Convert pattern to lowercase for comparison
+    pattern_lower = pattern.lower()
+
+    for file_path in all_files:
+        filename = os.path.basename(file_path)
+        if filename.lower() == pattern_lower:
+            return file_path
+
+    return None
 
 
 st.set_page_config(page_title="True vs Predicted", page_icon="📊", layout="wide")
@@ -73,11 +101,15 @@ def load_and_plot_graph(graph_index):
         nom_idio_value = "nomot" if nomothetic_idiographic == "Nomothetic" else "idiog"
         ml_model_short = "en" if ml_model == "Elastic Net (en)" else "rf"
 
-        # Construct File Name
+        # Construct File Name with case-insensitive search
         file_name = (
             f"True_vs_predicted_comb_{ml_model_short}_{outcome}_{nom_idio_value}.csv"
         )
-        file_path = os.path.join(DATA_DIR, file_name)
+        file_path = find_file_case_insensitive(DATA_DIR, file_name)
+
+        # If case-insensitive search found a file, update file_name to actual filename
+        if file_path:
+            file_name = os.path.basename(file_path)
 
         # Check if the file has already been used in another graph
         duplicate_graph_number = st.session_state.used_files.get(file_name)
@@ -88,7 +120,7 @@ def load_and_plot_graph(graph_index):
         #     # return
 
         # Load CSV File
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             df = pd.read_csv(file_path)
             df.columns = df.columns.str.lower()  # Add lowercase conversion
 

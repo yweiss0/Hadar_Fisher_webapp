@@ -1,12 +1,41 @@
 import streamlit as st
 import pandas as pd
 import os
+import glob
 import plotly.graph_objects as go
 import new_app_chatbot
 import numpy as np
 
 # File Path
 DATA_DIR = "data/files_tab_4/"
+
+
+def find_file_case_insensitive(directory, pattern):
+    """
+    Find a file in directory matching pattern (case-insensitive).
+    Returns the actual file path if found, None otherwise.
+    """
+    # Create case-insensitive pattern using glob
+    search_pattern = os.path.join(directory, pattern)
+
+    # Try exact match first
+    if os.path.exists(search_pattern):
+        return search_pattern
+
+    # If exact match fails, try case-insensitive search
+    # Get all files in directory
+    all_files = glob.glob(os.path.join(directory, "*"))
+
+    # Convert pattern to lowercase for comparison
+    pattern_lower = pattern.lower()
+
+    for file_path in all_files:
+        filename = os.path.basename(file_path)
+        if filename.lower() == pattern_lower:
+            return file_path
+
+    return None
+
 
 st.set_page_config(
     page_title="Feature Importance Heatmap", page_icon="📊", layout="wide"
@@ -102,14 +131,15 @@ with right_col:
         #     unsafe_allow_html=True
         # )
 
-    # File selection based on user inputs
+    # File selection based on user inputs with case-insensitive search
     if use_abs:
         file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}_abs.csv"
     else:
         file_name = f"Featureimportance_{ml_model_short}_comb_{outcome}.csv"
-    file_path = os.path.join(DATA_DIR, file_name)
 
-    if not os.path.exists(file_path):
+    file_path = find_file_case_insensitive(DATA_DIR, file_name)
+
+    if not file_path:
         st.error(f"File not found: {file_name}")
         st.stop()
 

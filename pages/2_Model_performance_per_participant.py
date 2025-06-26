@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import glob
 import new_app_chatbot
 
 # File Path
@@ -10,6 +11,34 @@ DATA_DIR = "data/files_tab_1_2/"
 st.set_page_config(page_title="Data Table View", page_icon="📊", layout="wide")
 
 st.title("📋 Model performance per participant")
+
+
+def find_file_case_insensitive(directory, pattern):
+    """
+    Find a file in directory matching pattern (case-insensitive).
+    Returns the actual file path if found, None otherwise.
+    """
+    # Create case-insensitive pattern using glob
+    search_pattern = os.path.join(directory, pattern)
+
+    # Try exact match first
+    if os.path.exists(search_pattern):
+        return search_pattern
+
+    # If exact match fails, try case-insensitive search
+    # Get all files in directory
+    all_files = glob.glob(os.path.join(directory, "*"))
+
+    # Convert pattern to lowercase for comparison
+    pattern_lower = pattern.lower()
+
+    for file_path in all_files:
+        filename = os.path.basename(file_path)
+        if filename.lower() == pattern_lower:
+            return file_path
+
+    return None
+
 
 # Center the entire layout
 st.write(
@@ -80,13 +109,41 @@ with left_col:
             "Outcome", ["Negative Affect", "Angry", "Nervous", "Sad"]
         ).lower()
         outcome = "na" if outcome == "negative affect" else outcome
-        file_name = (
-            f"{nlp_approach_value}_{ml_model_short}_{outcome}_{nom_idio_value}.csv"
-        )
-        file_path = os.path.join(DATA_DIR, file_name)
+
+        # Try multiple case variations for the NLP approach
+        possible_approaches = [
+            nlp_approach_value.lower(),  # lowercase
+            (
+                nlp_approach if nlp_approach != "COMBINED" else "COMB"
+            ),  # original/uppercase
+            (
+                nlp_approach.capitalize() if nlp_approach != "COMBINED" else "Comb"
+            ),  # capitalized
+        ]
+
+        file_path = None
+        file_name = None
+
+        # Try each case variation until we find the file
+        for approach_variant in possible_approaches:
+            test_file_name = (
+                f"{approach_variant}_{ml_model_short}_{outcome}_{nom_idio_value}.csv"
+            )
+            test_file_path = find_file_case_insensitive(DATA_DIR, test_file_name)
+
+            if test_file_path:
+                file_path = test_file_path
+                file_name = os.path.basename(test_file_path)
+                break
+
+        # If no variation worked, use the original for error message
+        if not file_path:
+            file_name = (
+                f"{nlp_approach_value}_{ml_model_short}_{outcome}_{nom_idio_value}.csv"
+            )
 
         df = None
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             df = pd.read_csv(file_path)
             df.columns = df.columns.str.lower()
 
