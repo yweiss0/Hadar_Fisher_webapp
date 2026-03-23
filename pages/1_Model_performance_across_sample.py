@@ -283,10 +283,12 @@ with right_col:
                 points="all",
                 color_discrete_sequence=["blue"],
             )
+            fig.update_traces(width=0.4)
             fig.update_layout(
                 title=f"R² Values for GPT Model ({outcome.upper()}, {nomothetic_idiographic})",
                 xaxis_title="ML Model",
                 yaxis_title="R²",
+                xaxis=dict(range=[-1, 1]),
                 template="plotly_white",
             )
         else:
