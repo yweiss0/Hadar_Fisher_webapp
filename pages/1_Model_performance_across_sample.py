@@ -248,8 +248,32 @@ with left_col:
                 f"File not found: {file_name_rf}. Random Forest data will be missing."
             )
 
+        # --- Load GPT data for comparison ---
+        df_gpt_final = pd.DataFrame()
+        gpt_file_path = os.path.join(DATA_DIR, "modelfit_gpt_all.csv")
+        if os.path.exists(gpt_file_path):
+            try:
+                df_gpt_raw = pd.read_csv(gpt_file_path)
+                df_gpt_raw.columns = df_gpt_raw.columns.str.lower()
+                df_gpt_raw["emotion_affect"] = (
+                    df_gpt_raw["emotion_affect"].str.lower().fillna("unknown")
+                )
+                df_gpt_raw["emotion_affect"] = df_gpt_raw["emotion_affect"].replace(
+                    {"negative affect": "na"}
+                )
+                df_gpt_outcome = df_gpt_raw[
+                    df_gpt_raw["emotion_affect"] == outcome
+                ].copy()
+                if "r2" in df_gpt_outcome.columns:
+                    df_gpt_outcome["ml model"] = "GPT"
+                    df_gpt_final = df_gpt_outcome.dropna(subset=["r2"]).copy()
+            except Exception:
+                pass  # GPT data is optional — silently skip if unavailable
+
         # Combine the *final* (R2-filtered) dataframes for plotting
-        df_combined_final = pd.concat([df_en_final, df_rf_final], ignore_index=True)
+        df_combined_final = pd.concat(
+            [df_en_final, df_rf_final, df_gpt_final], ignore_index=True
+        )
 
         # Warnings based on final dataframes
         if df_en is None and df_rf is None:
@@ -310,6 +334,7 @@ with right_col:
                 color_discrete_map={
                     "Elastic Net (en)": "red",
                     "Random Forest (rf)": "blue",
+                    "GPT": "green",
                 },
             )
             fig.update_layout(
@@ -430,6 +455,19 @@ with right_col:
         summary_data.append(
             ["Random Forest (rf)", M_SD_rf, n_rf, Range_rf, P_below_0_05_rf]
         )
+
+        # Process GPT (comparison)
+        n_gpt_comp = df_gpt_final.shape[0]
+        if n_gpt_comp > 0:
+            if "p_value" in df_gpt_final.columns:
+                M_SD_gpt = f"{df_gpt_final['r2'].mean():.2f} ({df_gpt_final['r2'].std():.2f})"
+                Range_gpt = f"({df_gpt_final['r2'].min():.2f}, {df_gpt_final['r2'].max():.2f})"
+                P_below_0_05_gpt = df_gpt_final[df_gpt_final["p_value"] < 0.05].shape[0]
+            else:
+                M_SD_gpt = f"{df_gpt_final['r2'].mean():.2f} ({df_gpt_final['r2'].std():.2f})"
+                Range_gpt = f"({df_gpt_final['r2'].min():.2f}, {df_gpt_final['r2'].max():.2f})"
+                P_below_0_05_gpt = "N/A"
+            summary_data.append(["GPT", M_SD_gpt, n_gpt_comp, Range_gpt, P_below_0_05_gpt])
 
     # Create and display the summary DataFrame
     if summary_data:  # Check if there's anything to display
