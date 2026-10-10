@@ -5,6 +5,8 @@ import streamlit.components.v1 as components
 
 
 st.set_page_config(page_title="ML Analysis Dashboard", page_icon="📊", layout="wide")
+from analytics import track_visit
+track_visit("home")
 components.html(
     open("threed.html").read(),
     height=800, # Full screen height width=None,  # Full width

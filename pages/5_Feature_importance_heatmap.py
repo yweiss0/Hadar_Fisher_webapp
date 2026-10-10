@@ -40,6 +40,8 @@ def find_file_case_insensitive(directory, pattern):
 st.set_page_config(
     page_title="Feature Importance Heatmap", page_icon="📊", layout="wide"
 )
+from analytics import track_visit
+track_visit("Feature_importance_heatmap")
 
 st.title("📉 feature importance Heatmap (SHAP Values)")
 

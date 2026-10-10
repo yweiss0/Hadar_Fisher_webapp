@@ -39,6 +39,8 @@ def find_file_case_insensitive(directory, pattern):
 
 
 st.set_page_config(page_title="True vs Predicted", page_icon="📊", layout="wide")
+from analytics import track_visit
+track_visit("True_vs_Predicted")
 # **Page Title with Refresh Button**
 col1, col2 = st.columns([8, 1])  # Title takes 8/9th, Refresh button takes 1/9th
 with col1:

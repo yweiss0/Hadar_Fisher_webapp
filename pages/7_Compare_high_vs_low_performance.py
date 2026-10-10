@@ -41,6 +41,8 @@ def find_file_case_insensitive(directory, pattern):
 st.set_page_config(
     page_title="Compare High vs Low Performance", page_icon="📊", layout="wide"
 )
+from analytics import track_visit
+track_visit("Compare_high_vs_low_performance")
 
 st.title("📊 Compare High vs Low Performance")
 

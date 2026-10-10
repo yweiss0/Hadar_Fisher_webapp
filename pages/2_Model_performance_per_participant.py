@@ -9,6 +9,8 @@ DATA_DIR = "data/files_tab_1_2/"
 # DATA_DIR = "C:/Projects/personal_projects2/Hadar_Fisher_Website/data/files_tab_1_2/"
 
 st.set_page_config(page_title="Data Table View", page_icon="📊", layout="wide")
+from analytics import track_visit
+track_visit("Model_performance_per_participant")
 
 st.title("📋 Model performance per participant")
 

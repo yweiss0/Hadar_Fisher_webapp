@@ -39,6 +39,8 @@ def find_file_case_insensitive(directory, pattern):
 st.set_page_config(
     page_title="Feature Importance Visualization", page_icon="📊", layout="wide"
 )
+from analytics import track_visit
+track_visit("Common_Top_Predicitve_Features")
 st.title("💡 Common Top Predictive Features")
 
 # Layout: Sidebar (1/4 width) for controls, Main area (3.5/4 width) for graphs

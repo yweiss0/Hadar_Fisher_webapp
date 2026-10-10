@@ -12,6 +12,8 @@ DATA_DIR = "data/files_tab_1_2/"
 st.set_page_config(
     page_title="Model Performance Analysis", page_icon="📊", layout="wide"
 )
+from analytics import track_visit
+track_visit("Model_performance_across_sample")
 
 st.title("📊 Model Performance Analysis")
 

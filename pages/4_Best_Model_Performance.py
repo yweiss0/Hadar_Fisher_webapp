@@ -39,6 +39,8 @@ def find_file_case_insensitive(directory, pattern):
 st.set_page_config(
     page_title="Best Model Performance per Participant", page_icon="📊", layout="wide"
 )
+from analytics import track_visit
+track_visit("Best_Model_Performance")
 st.title("🥇 Best Model Performance")
 
 st.write(

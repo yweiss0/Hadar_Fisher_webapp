@@ -41,6 +41,8 @@ def find_file_case_insensitive(directory, pattern):
 st.set_page_config(
     page_title="Feature Importance Visualization", page_icon="📊", layout="wide"
 )
+from analytics import track_visit
+track_visit("Feature_importance_per_participant")
 
 st.title("📉 Feature importance per participant (SHAP Value)")
 
